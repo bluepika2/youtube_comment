@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sentiment Results</title>
+</head>
+<body>
+    <h2>Sentiment Analysis Results</h2>
+
+    <p><strong>Positive:</strong> {{ sentiments['positive'] }}</p>
+    <p><strong>Neutral:</strong> {{ sentiments['neutral'] }}</p>
+    <p><strong>Negative:</strong> {{ sentiments['negative'] }}</p>
+
+    <h3>Analyzed Comments</h3>
+    <ul>
+        {% for comment in comments %}
+            <li><strong>{{ comment.sentiment }}:</strong> {{ comment.text }}</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/">Analyze Another Video</a>
+</body>
+</html>
