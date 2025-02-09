@@ -1,17 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>YouTube Sentiment Analysis</title>
+  <meta charset="UTF-8">
+  <title>YouTube Spam Detection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    h1 {
+      color: #333;
+    }
+    form {
+      margin-top: 1rem;
+    }
+    input[type="text"] {
+      width: 60%;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      margin-left: 0.5rem;
+      cursor: pointer;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+  </style>
 </head>
 <body>
-    <h2>Enter YouTube Video Link</h2>
-    <form method="POST">
-        <input type="text" name="youtube_url" placeholder="Enter YouTube URL" required>
-        <button type="submit">Analyze</button>
-    </form>
+  <h1>YouTube Spam Detection</h1>
 
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <form action="/" method="post">
+    <label for="youtube_url">Enter YouTube URL:</label><br>
+    <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+    <button type="submit">Fetch Comments</button>
+  </form>
 </body>
 </html>
