@@ -1,11 +1,12 @@
 import os
 import re
 import torch
+import emoji
 import pandas as pd
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments, DataCollatorForLanguageModeling
 from datasets import Dataset
-from datasets import DatasetDict
-
+import logging as log
+log.basicConfig(level=log.INFO, format="%(asctime)s - %(levelname)s : %(message)s")
 
 class YouTubeCommentGenerator:
     def __init__(self, model_name="gpt2", dataset=None, model_path="./fine_tuned_youtube_model"):
@@ -21,15 +22,21 @@ class YouTubeCommentGenerator:
 
         # Initially load the base GPT2 model
         self.model = GPT2LMHeadModel.from_pretrained(model_name)
-        print(f"Loaded base GPT-2 model from {model_name}")
+        log.info(f"Loaded base GPT-2 model from {model_name}")
 
     def clean_text(self, text):
         """
         Cleans input text by removing extra spaces, special characters, and fixing common issues.
-        Keep emoji and URL since those attributes are
-        """
-        text = re.sub(r'\s+', ' ', text.strip())
-        text = re.sub(r'[!@#$%^&*()_+=\[\]{}|\\\":;<>~`]', '', text)
+        Keep emoji and URL since those attributes are common in spam
+        removes only unnecessary special characters while keeping punctuation, numbers, and URLs."""
+        text = emoji.replace_emoji(text)
+        text = text.lower()
+        # Step 1: Remove special characters but keep letters, numbers, spaces, and punctuation
+        text = re.sub(r'[^a-zA-Z0-9\s.,=!?\'":;/\-]', '', text)
+
+        # Step 2: Remove excessive spaces
+        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r'br /', '', text)
         return text
 
     def load_dataset(self, dataset):
@@ -86,19 +93,21 @@ class YouTubeCommentGenerator:
         )
 
         trainer.train()
-        print("Fine-tuning completed.")
+        log.info("Fine-tuning completed.")
         self.save_model(output_dir)
 
-    def generate_comment(self, prompt="This video is", max_length=50):
+    def generate_comment(self, prompt="This video is"):
         """
         Generates a YouTube-style comment based on the given prompt.
         """
         prompt = self.clean_text(prompt)
         inputs = self.tokenizer(prompt, return_tensors="pt")
-        outputs = self.model.generate(**inputs, max_length=max_length, num_return_sequences=1,
+        outputs = self.model.generate(**inputs, max_new_tokens=50, num_return_sequences=1,
                                       no_repeat_ngram_size=2, temperature=0.8, top_k=50, top_p=0.95, do_sample=True,
                                       repetition_penalty=1.2, pad_token_id=self.tokenizer.eos_token_id)
-        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        generated_comment = self.clean_generated_text(generated_text[len(prompt):].strip())
+        return generated_comment
 
     def save_model(self, path="fine_tuned_youtube_model"):
         """
@@ -106,7 +115,7 @@ class YouTubeCommentGenerator:
         """
         self.model.save_pretrained(path)
         self.tokenizer.save_pretrained(path)
-        print(f"Model saved to {path}")
+        log.info(f"Model saved to {path}")
 
     def load_fine_tuned_model(self, path="fine_tuned_youtube_model"):
         """
@@ -115,10 +124,15 @@ class YouTubeCommentGenerator:
         if os.path.exists(path):
             self.model = GPT2LMHeadModel.from_pretrained(path)
             self.tokenizer = GPT2Tokenizer.from_pretrained(path)
-            print(f"Fine-tuned model loaded from {path}")
+            log.info(f"Fine-tuned model loaded from {path}")
         else:
-            print(f"Fine-tuned model not found at {path}. Proceeding with base model.")
+            log.info(f"Fine-tuned model not found at {path}. Proceeding with base model.")
 
+    def clean_generated_text(self, text):
+        """Removes unwanted trailing special characters from generated output."""
+        text = text.strip()
+        text = re.sub(r'[^a-zA-Z0-9\s.,!?\'"]+$', '', text)  # Remove trailing special characters
+        return text
 
 if __name__ == "__main__":
     # Example dataset (can be replaced with a CSV file or list of comments)
@@ -132,17 +146,21 @@ if __name__ == "__main__":
 
     # If model is not fine-tuned yet, fine-tune it
     if not os.path.exists(generator.model_path):
-        print("Fine-tuning the model...")
+        log.info("Fine-tuning the model...")
         generator.dataset = generator.load_dataset(sample_comments)  # Load dataset for fine-tuning
         # for i in range(100):
         #     print(f"{i+1}. {generator.dataset[i]['CONTENT']}")
         generator.fine_tune(epochs=3, batch_size=2)
 
     # Generate sample comments
-    print("\nGenerated YouTube Comments:")
+    log.info("Generating YouTube Comments:")
     results = []
-    for _ in range(5):
-        generated_comment = generator.generate_comment("Subscribe to My CHANNEL")
-        results.append(generated_comment)
-        print(generated_comment)
-    print(results)
+    clean_text_fn = generator.clean_text
+    df = pd.read_csv("youtube_spam_detection/Youtube-Spam-Dataset.csv")
+    for i in range(len(df)):
+        prompt = clean_text_fn(df['CONTENT'].loc[i])
+        for _ in range(5):
+            generated_comment = generator.generate_comment(prompt)
+            results.append(generated_comment)
+    df_out = pd.DataFrame(results, columns=["CONTENT"])
+    df_out.to_csv("generated_comments.csv")
