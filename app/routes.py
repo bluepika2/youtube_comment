@@ -127,7 +127,7 @@ def index():
         sentiments, analyzed_comments = analyze_sentiment(comments)
         # Load the spam detection model (this assumes the model is already trained)
         try:
-            model, tokenizer = load_model("distilbert-base-uncased", model_path=models_dir)
+            model, tokenizer = load_model("distilbert-base-uncased-final", model_path=models_dir)
         except Exception as e:
             return render_template("index.html", error=f"Error loading spam detection model: {e}")
 
