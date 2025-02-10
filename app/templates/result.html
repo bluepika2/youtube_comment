@@ -1,22 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Sentiment Results</title>
+  <meta charset="UTF-8">
+  <title>Spam Detection Results</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    h1 {
+      color: #333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    a {
+      display: inline-block;
+      margin-top: 1rem;
+      text-decoration: none;
+      color: #0066cc;
+    }
+  </style>
 </head>
 <body>
-    <h2>Sentiment Analysis Results</h2>
+  <h1>Spam Detection Results</h1>
 
-    <p><strong>Positive:</strong> {{ sentiments['positive'] }}</p>
-    <p><strong>Neutral:</strong> {{ sentiments['neutral'] }}</p>
-    <p><strong>Negative:</strong> {{ sentiments['negative'] }}</p>
+  <a href="/">← Back to Home</a>
 
-    <h3>Analyzed Comments</h3>
-    <ul>
-        {% for comment in comments %}
-            <li><strong>{{ comment.sentiment }}:</strong> {{ comment.text }}</li>
-        {% endfor %}
-    </ul>
-
-    <a href="/">Analyze Another Video</a>
+  <table>
+    <thead>
+      <tr>
+        <th>Comment</th>
+        <th>Sentiment</th>
+        <th>Spam Classification</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in comments %}
+      <tr>
+        <td>{{ item.text }}</td>
+        <td>{{ item.sentiment }}</td>
+        <td>{{ item.spam }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </body>
 </html>

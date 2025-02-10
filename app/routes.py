@@ -3,12 +3,18 @@ from googleapiclient.discovery import build
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import re
 import os
+import sys
 import emoji
-
+from youtube_spam_detection.spam_detection import load_model, classify_comment  # Import spam detection functions
 main = Blueprint('main', __name__)
 
 # YouTube API Key
 YOUTUBE_API_KEY = os.getenv('API_KEY')
+
+# Add the 'youtube_spam_detection' directory to sys.path so we can import spam_detection.py
+current_dir = os.path.dirname(os.path.abspath(__file__))
+models_dir = os.path.join(current_dir, '..', 'youtube_spam_detection')
+sys.path.append(models_dir)
 
 def get_video_id(url):
     """
@@ -118,9 +124,19 @@ def index():
         if isinstance(comments, str): # Error case
             return render_template("index.html", error=comments)
 
-        sentiments, analyze_comments = analyze_sentiment(comments)
+        sentiments, analyzed_comments = analyze_sentiment(comments)
+        # Load the spam detection model (this assumes the model is already trained)
+        try:
+            model, tokenizer = load_model("distilbert-base-uncased-final", model_path=models_dir)
+        except Exception as e:
+            return render_template("index.html", error=f"Error loading spam detection model: {e}")
 
-        return render_template("result.html", sentiments=sentiments, comments=analyze_comments)
+            # For each comment, classify as Spam or Not Spam
+        for item in analyzed_comments:
+            spam_result = classify_comment(item["text"], model, tokenizer)
+            item["spam"] = spam_result
+
+        return render_template("result.html", sentiments=sentiments, comments=analyzed_comments)
 
     return render_template("index.html")
 
