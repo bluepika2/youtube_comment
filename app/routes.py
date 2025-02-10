@@ -5,7 +5,8 @@ import re
 import os
 import sys
 import emoji
-from youtube_spam_detection.spam_detection import load_model, classify_comment  # Import spam detection functions
+from youtube_spam_detection.spam_detection import load_model_from_hub, classify_comment  # Import spam detection functions
+
 main = Blueprint('main', __name__)
 
 # YouTube API Key
@@ -126,8 +127,10 @@ def index():
 
         sentiments, analyzed_comments = analyze_sentiment(comments)
         # Load the spam detection model (this assumes the model is already trained)
+        hf_token = os.getenv("HF_TOKEN")  # Ensure HF_TOKEN is set in Heroku config
+        repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repo name
         try:
-            model, tokenizer = load_model("distilbert-base-uncased-final", model_path=models_dir)
+            model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
         except Exception as e:
             return render_template("index.html", error=f"Error loading spam detection model: {e}")
 

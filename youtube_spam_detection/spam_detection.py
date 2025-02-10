@@ -1,6 +1,23 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
+def load_model_from_hub(repo_name, use_auth_token=None):
+    """
+    Loads a fine-tuned spam detection model from the Hugging Face Hub.
+
+    Args:
+        repo_name (str): The repository name on the hub (e.g., "your-username/spam-detection").
+        use_auth_token (str, optional): Your Hugging Face token. If your repository is public,
+            you may omit this.
+
+    Returns:
+        model, tokenizer: The loaded model and tokenizer.
+    """
+    print(f"Loading model from Hugging Face Hub: {repo_name}")
+    model = AutoModelForSequenceClassification.from_pretrained(repo_name, use_auth_token=use_auth_token)
+    tokenizer = AutoTokenizer.from_pretrained(repo_name, use_auth_token=use_auth_token)
+    return model, tokenizer
+
 def load_model(model_name, model_path=None):
     """
     Loads a fine-tuned spam detection model.
