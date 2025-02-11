@@ -11,6 +11,15 @@ main = Blueprint('main', __name__)
 
 # YouTube API Key
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+# Load the spam detection model (this assumes the model is already trained)
+hf_token = os.getenv("HF_TOKEN")  # Ensure HF_TOKEN is set in Heroku config
+repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repo name
+# Load the model only once
+try:
+    model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
+except Exception as e:
+    MODEL, TOKENIZER = None, None
+    print(f"Error loading model: {e}")
 
 # Add the 'youtube_spam_detection' directory to sys.path so we can import spam_detection.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -126,13 +135,7 @@ def index():
             return render_template("index.html", error=comments)
 
         sentiments, analyzed_comments = analyze_sentiment(comments)
-        # Load the spam detection model (this assumes the model is already trained)
-        hf_token = os.getenv("HF_TOKEN")  # Ensure HF_TOKEN is set in Heroku config
-        repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repo name
-        try:
-            model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
-        except Exception as e:
-            return render_template("index.html", error=f"Error loading spam detection model: {e}")
+
 
             # For each comment, classify as Spam or Not Spam
         for item in analyzed_comments:
