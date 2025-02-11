@@ -1,11 +1,12 @@
 datasets==2.12.0
 emoji==2.14.1
-Flask==2.2.2
+flask>=2.0
+Werkzeug>=2.0
+gunicorn>=20.0
 google_api_python_client==2.160.0
 pandas==1.5.3
 transformers==4.48.3
 vaderSentiment==3.3.2
-gunicorn==23.0.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.6.0+cpu
 
