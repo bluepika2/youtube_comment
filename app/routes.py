@@ -31,7 +31,7 @@ def get_video_id(url):
     match = re.search(pattern, url)
     return match.group(1) if match else None
 
-def fetch_comments(video_id):
+def fetch_comments(video_id, max_comments=100):
     """
     Fetch comments from a YouTube video
     :param video_id:
@@ -44,7 +44,7 @@ def fetch_comments(video_id):
 
     comments = []
     nextPageToken = None
-    while len(comments) < 600:
+    while len(comments) < max_comments:
         try:
             response = youtube.commentThreads().list(
                 part='snippet',
@@ -120,7 +120,7 @@ def index():
         if not video_id:
             return render_template("index.html", error="Invalid YouTube URL")
 
-        comments = fetch_comments(video_id)
+        comments = fetch_comments(video_id, max_comments=300)
 
         if isinstance(comments, str): # Error case
             return render_template("index.html", error=comments)
