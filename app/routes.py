@@ -10,7 +10,7 @@ from youtube_spam_detection.spam_detection import load_model_from_hub, classify_
 main = Blueprint('main', __name__)
 
 # YouTube API Key
-YOUTUBE_API_KEY = os.getenv('API_KEY')
+YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 
 # Add the 'youtube_spam_detection' directory to sys.path so we can import spam_detection.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
