@@ -87,7 +87,7 @@ def analyze_sentiment(comments):
     """
     hyperlink_pattern = re.compile(
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    threshold_ratio = 0.65
+    threshold_ratio = 0.1
     relevant_comments = []
     # cleaned comments by filtering URL and too many emojis with threshold
     for comment_text in comments:
@@ -119,6 +119,17 @@ def analyze_sentiment(comments):
         analyzed_comments.append({"text": comment, "sentiment": sentiment})
     return analyzed_comments
 
+def is_adult_content(comment):
+    """
+    Checks whether a comment might be pushing adult content.
+    This example uses a simple keyword-based method.
+    """
+    adult_keywords = [
+        "xxx", "porn", "adult video", "nude", "explicit", "sex", "hot", "adult"
+    ]
+    pattern = re.compile("|".join(adult_keywords), re.IGNORECASE)
+    return bool(pattern.search(comment))
+
 @main.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
@@ -135,24 +146,40 @@ def index():
 
         analyzed_comments = analyze_sentiment(comments)
 
-
-            # For each comment, classify as Spam or Not Spam
-        for item in analyzed_comments:
-            spam_result = classify_comment(item["text"], model, tokenizer)
-            item["spam"] = spam_result
-
-            # Aggregate results for the dashboard.
+        # Initialize aggregate counters.
         sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
         spam_counts = {"Spam": 0, "Not Spam": 0}
+        adult_counts = {"Adult Content": 0, "Non Adult": 0}
+        repeated_counts = {}
 
+        # Process each comment: classify spam and update aggregate counts.
         for item in analyzed_comments:
-            sentiment_counts[item["sentiment"]] += 1
-            spam_counts[item["spam"]] += 1
+            # Classify the comment and add the spam key.
+            spam_result = classify_comment(item["text"], model, tokenizer)
+            item["spam"] = spam_result
+            # Detect adult content.
+            if is_adult_content(item["text"]):
+                item["adult"] = "Adult Content"
+            else:
+                item["adult"] = "Non Adult"
 
-        # Pass the aggregated counts to the dashboard template.
+            # Update aggregate counts.
+            sentiment_counts[item["sentiment"]] += 1
+            spam_counts[spam_result] += 1
+            adult_counts[item["adult"]] += 1
+
+            # Count repeated comments (using the original text).
+            text = item["text"]
+            repeated_counts[text] = repeated_counts.get(text, 0) + 1
+
+            # Filter repeated comments: only keep those that appear more than once.
+        repeated_comments = {k: v for k, v in repeated_counts.items() if v > 1}
+
         return render_template("result.html",
                                sentiment_counts=sentiment_counts,
-                               spam_counts=spam_counts)
+                               spam_counts=spam_counts,
+                               adult_counts=adult_counts,
+                               repeated_comments=repeated_comments)
     return render_template("index.html")
 
 # def sentiment_scores(comment, polarity):
