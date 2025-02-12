@@ -75,6 +75,10 @@ def fetch_comments(video_id, max_comments=100):
             return f"Error fetching comments: {e}"
     return comments
 
+def sentiment_scores(comment, analyzer):
+    sentiment_dict = analyzer.polarity_scores(comment)
+    return sentiment_dict['compound']
+
 def analyze_sentiment(comments):
     """
     Analyze sentiment of comments
@@ -85,7 +89,7 @@ def analyze_sentiment(comments):
         r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
     threshold_ratio = 0.65
     relevant_comments = []
-
+    # cleaned comments by filtering URL and too many emojis with threshold
     for comment_text in comments:
         comment_text = comment_text.lower().strip()
         emojis = emoji.emoji_count(comment_text)
@@ -96,29 +100,24 @@ def analyze_sentiment(comments):
             if emojis == 0 or (text_characters / (text_characters + emojis)) > threshold_ratio:
                 relevant_comments.append(comment_text)
 
-    polarity = []
-    positive_comments = []
-    negative_comments = []
-    neutral_comments = []
-    sentiments = {"positive": 0, "neutral": 0, "negative": 0}
+    # polarity = []
+    # positive_comments = []
+    # negative_comments = []
+    # neutral_comments = []
+    # sentiments = {"positive": 0, "neutral": 0, "negative": 0}
+    analyzer = SentimentIntensityAnalyzer()
     analyzed_comments = []
 
-    for comment in comments:
-        polarity = sentiment_scores(comment, polarity)
-        if polarity[-1] > 0.05:
-            positive_comments.append(comment)
-            sentiments["positive"] += 1
+    for comment in relevant_comments:
+        score = sentiment_scores(comment, analyzer)
+        if score > 0.05:
             sentiment = "Positive"
-        elif polarity[-1] < -0.05:
-            negative_comments.append(comment)
-            sentiments["negative"] += 1
+        elif score < -0.05:
             sentiment = "Negative"
         else:
-            neutral_comments.append(comment)
-            sentiments["neutral"] += 1
             sentiment = "Neutral"
         analyzed_comments.append({"text": comment, "sentiment": sentiment})
-    return sentiments, analyzed_comments
+    return analyzed_comments
 
 @main.route("/", methods=["GET", "POST"])
 def index():
@@ -129,12 +128,12 @@ def index():
         if not video_id:
             return render_template("index.html", error="Invalid YouTube URL")
 
-        comments = fetch_comments(video_id, max_comments=300)
+        comments = fetch_comments(video_id, max_comments=100)
 
         if isinstance(comments, str): # Error case
             return render_template("index.html", error=comments)
 
-        sentiments, analyzed_comments = analyze_sentiment(comments)
+        analyzed_comments = analyze_sentiment(comments)
 
 
             # For each comment, classify as Spam or Not Spam
@@ -142,12 +141,22 @@ def index():
             spam_result = classify_comment(item["text"], model, tokenizer)
             item["spam"] = spam_result
 
-        return render_template("result.html", sentiments=sentiments, comments=analyzed_comments)
+            # Aggregate results for the dashboard.
+        sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
+        spam_counts = {"Spam": 0, "Not Spam": 0}
 
+        for item in analyzed_comments:
+            sentiment_counts[item["sentiment"]] += 1
+            spam_counts[item["spam"]] += 1
+
+        # Pass the aggregated counts to the dashboard template.
+        return render_template("result.html",
+                               sentiment_counts=sentiment_counts,
+                               spam_counts=spam_counts)
     return render_template("index.html")
 
-def sentiment_scores(comment, polarity):
-    sentiment_object = SentimentIntensityAnalyzer()
-    sentiment_dict = sentiment_object.polarity_scores(comment)
-    polarity.append(sentiment_dict['compound'])
-    return polarity
+# def sentiment_scores(comment, polarity):
+#     sentiment_object = SentimentIntensityAnalyzer()
+#     sentiment_dict = sentiment_object.polarity_scores(comment)
+#     polarity.append(sentiment_dict['compound'])
+#     return polarity
