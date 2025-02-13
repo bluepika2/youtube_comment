@@ -5,6 +5,7 @@ import re
 import os
 import sys
 import emoji
+import requests
 from youtube_spam_detection.spam_detection import load_model_from_hub, classify_comment  # Import spam detection functions
 
 main = Blueprint('main', __name__)
@@ -100,11 +101,7 @@ def analyze_sentiment(comments):
             if emojis == 0 or (text_characters / (text_characters + emojis)) > threshold_ratio:
                 relevant_comments.append(comment_text)
 
-    # polarity = []
-    # positive_comments = []
-    # negative_comments = []
-    # neutral_comments = []
-    # sentiments = {"positive": 0, "neutral": 0, "negative": 0}
+
     analyzer = SentimentIntensityAnalyzer()
     analyzed_comments = []
 
@@ -130,19 +127,50 @@ def is_adult_content(comment):
     pattern = re.compile("|".join(adult_keywords), re.IGNORECASE)
     return bool(pattern.search(comment))
 
+# Use the Unsplash API to fetch images.
+def fetch_unsplash_images(query, per_page=1):
+    unsplash_access_key = os.getenv("UNSPLASH_ACCESS_KEY")
+    if not unsplash_access_key:
+        print("UNSPLASH_ACCESS_KEY not set.")
+        return []
+
+    url = "https://api.unsplash.com/search/photos"
+    params = {
+        "query": query,
+        "per_page": per_page
+    }
+    headers = {
+        "Authorization": f"Client-ID {unsplash_access_key}"
+    }
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code != 200:
+        print("Error fetching images from Unsplash:", response.status_code, response.text)
+        return []
+
+    data = response.json()
+    image_urls = []
+    for photo in data.get("results", []):
+        image_urls.append(photo["urls"]["regular"])
+    return image_urls
+
 @main.route("/", methods=["GET", "POST"])
 def index():
+    # Fetch hero and carousel images from Unsplash.
+    hero_images = fetch_unsplash_images("youtube", per_page=1)
+    carousel_images = fetch_unsplash_images("technology", per_page=3)
     if request.method == "POST":
         url = request.form['youtube_url']
         video_id = get_video_id(url)
 
         if not video_id:
-            return render_template("index.html", error="Invalid YouTube URL")
+            return render_template("index.html", error="Invalid YouTube URL",
+                                   hero_images=hero_images, carousel_images=carousel_images)
 
         comments = fetch_comments(video_id, max_comments=100)
 
         if isinstance(comments, str): # Error case
-            return render_template("index.html", error=comments)
+            return render_template("index.html", error=comments,
+                                   hero_images=hero_images, carousel_images=carousel_images)
 
         analyzed_comments = analyze_sentiment(comments)
 
@@ -179,11 +207,8 @@ def index():
                                sentiment_counts=sentiment_counts,
                                spam_counts=spam_counts,
                                adult_counts=adult_counts,
-                               repeated_comments=repeated_comments)
-    return render_template("index.html")
+                               repeated_comments=repeated_comments,
+                               hero_images=hero_images,
+                               carousel_images=carousel_images)
+    return render_template("index.html", hero_images=hero_images, carousel_images=carousel_images)
 
-# def sentiment_scores(comment, polarity):
-#     sentiment_object = SentimentIntensityAnalyzer()
-#     sentiment_dict = sentiment_object.polarity_scores(comment)
-#     polarity.append(sentiment_dict['compound'])
-#     return polarity
