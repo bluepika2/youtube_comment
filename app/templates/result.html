@@ -1,168 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Spam Detection Dashboard</title>
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { padding-top: 70px; background-color: #f8f9fa; }
-    .container { max-width: 1100px; }
-    .chart-container { margin-bottom: 2rem; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spam Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 70px; background-color: #f8f9fa; }
+        .container { max-width: 1100px; }
+        .chart-container { margin-bottom: 2rem; }
+    </style>
 </head>
 <body>
-  <!-- Navigation Bar with Dark Mode Toggle -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-    <div class="container">
-      <a class="navbar-brand" href="/">YouTube Spam Detector Dashboard</a>
-      <button class="btn btn-outline-light ms-auto" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">YouTube Spam Detector Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Video Details</h3>
+            </div>
+            <div class="card-body">
+                <h4>{{ video_details.title }}</h4>
+                <p><strong>Channel:</strong> {{ video_details.channelTitle }}</p>
+                <p><strong>Published At:</strong> {{ video_details.publishedAt }}</p>
+                <p><strong>Views:</strong> {{ video_details.viewCount }} | <strong>Likes:</strong> {{ video_details.likeCount }} | <strong>Comments:</strong> {{ video_details.commentCount }}</p>
+                <p>{{ video_details.description }}</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 chart-container">
+                <canvas id="sentimentChart"></canvas>
+            </div>
+            <div class="col-md-4 chart-container">
+                <canvas id="spamChart"></canvas>
+            </div>
+            <div class="col-md-4 chart-container">
+                <canvas id="adultChart"></canvas>
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3>Repeated Comments</h3>
+                {% if repeated_comments %}
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Comment</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comment, count in repeated_comments.items() %}
+                        <tr>
+                            <td>{{ comment }}</td>
+                            <td>{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                  <p>No repeated comments found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3>Top Commenters</h3>
+                {% if author_counts %}
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Author</th>
+                            <th>Number of Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for author, count in author_counts.items() %}
+                        <tr>
+                            <td>{{ author }}</td>
+                            <td>{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                  <p>No author data available.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
-  </nav>
 
-  <div class="container mt-5">
-    <h1 class="mb-4">Dashboard</h1>
-    <div class="row">
-      <div class="col-md-4 chart-container">
-        <canvas id="sentimentChart"></canvas>
-      </div>
-      <div class="col-md-4 chart-container">
-        <canvas id="spamChart"></canvas>
-      </div>
-      <div class="col-md-4 chart-container">
-        <canvas id="adultChart"></canvas>
-      </div>
-    </div>
+    <script>
+        const sentimentCounts = {{ sentiment_counts | tojson }};
+        const spamCounts = {{ spam_counts | tojson }};
+        const adultCounts = {{ adult_counts | tojson }};
 
-    <!-- Repeated Comments Section -->
-    <div class="row mt-5">
-      <div class="col-12">
-        <h3>Repeated Comments</h3>
-        {% if repeated_comments %}
-        <table class="table table-bordered">
-          <thead class="table-light">
-            <tr>
-              <th>Comment</th>
-              <th>Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for comment, count in repeated_comments.items() %}
-            <tr>
-              <td>{{ comment }}</td>
-              <td>{{ count }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-          <p>No repeated comments found.</p>
-        {% endif %}
-      </div>
-    </div>
+        new Chart(document.getElementById('sentimentChart'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(sentimentCounts),
+                datasets: [{
+                    data: Object.values(sentimentCounts),
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                }]
+            }
+        });
 
-    <div class="mt-4">
-      <a href="/" class="btn btn-secondary">← Back to Home</a>
-    </div>
-  </div>
+        new Chart(document.getElementById('spamChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(spamCounts),
+                datasets: [{
+                    data: Object.values(spamCounts),
+                    backgroundColor: ['#dc3545', '#28a745']
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+        });
 
-  <!-- Footer -->
-  <footer class="mt-4">
-    <div class="container">
-      <p>&copy; 2023 YouTube Spam Detector Dashboard. All rights reserved.</p>
-    </div>
-  </footer>
+        new Chart(document.getElementById('adultChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(adultCounts),
+                datasets: [{
+                    data: Object.values(adultCounts),
+                    backgroundColor: ['#dc3545', '#28a745']
+                }]
+            }
+        });
+    </script>
 
-  <script>
-    // Data passed from Flask as JSON objects
-    const sentimentCounts = {{ sentiment_counts | tojson }};
-    const spamCounts = {{ spam_counts | tojson }};
-    const adultCounts = {{ adult_counts | tojson }};
-
-    const sentimentLabels = Object.keys(sentimentCounts);
-    const sentimentData = Object.values(sentimentCounts);
-
-    const spamLabels = Object.keys(spamCounts);
-    const spamData = Object.values(spamCounts);
-
-    const adultLabels = Object.keys(adultCounts);
-    const adultData = Object.values(adultCounts);
-
-    // Sentiment Chart (Pie Chart)
-    const ctxSentiment = document.getElementById('sentimentChart').getContext('2d');
-    const sentimentChart = new Chart(ctxSentiment, {
-      type: 'pie',
-      data: {
-        labels: sentimentLabels,
-        datasets: [{
-          label: 'Sentiment Distribution',
-          data: sentimentData,
-          backgroundColor: ['#28a745', '#ffc107', '#dc3545']  // Green, Yellow, Red
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-          title: { display: true, text: 'Sentiment Distribution' }
-        }
-      }
-    });
-
-    // Spam Chart (Bar Chart)
-    const ctxSpam = document.getElementById('spamChart').getContext('2d');
-    const spamChart = new Chart(ctxSpam, {
-      type: 'bar',
-      data: {
-        labels: spamLabels,
-        datasets: [{
-          label: 'Spam Classification',
-          data: spamData,
-          backgroundColor: ['#dc3545', '#28a745']  // Red for Spam, Green for Not Spam
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          title: { display: true, text: 'Spam Classification' }
-        },
-        scales: {
-          y: { beginAtZero: true, ticks: { precision: 0 } }
-        }
-      }
-    });
-
-    // Adult Content Chart (Doughnut Chart)
-    const ctxAdult = document.getElementById('adultChart').getContext('2d');
-    const adultChart = new Chart(ctxAdult, {
-      type: 'doughnut',
-      data: {
-        labels: adultLabels,
-        datasets: [{
-          label: 'Adult Content Classification',
-          data: adultData,
-          backgroundColor: ['#dc3545', '#28a745']  // Red for Adult, Green for Non Adult
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-          title: { display: true, text: 'Adult Content Classification' }
-        }
-      }
-    });
-
-    // Dark Mode Toggle Function (shared with index.html)
-    function toggleDarkMode() {
-      document.body.classList.toggle("dark-mode");
-    }
-  </script>
-
-  <!-- Bootstrap 5 JS Bundle (includes Popper) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

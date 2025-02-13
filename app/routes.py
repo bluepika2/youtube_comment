@@ -8,31 +8,17 @@ import emoji
 import requests
 from youtube_spam_detection.spam_detection import load_model_from_hub, classify_comment  # Import spam detection functions
 
-main = Blueprint('main', __name__)
-
-# YouTube API Key
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
-# Load the spam detection model (this assumes the model is already trained)
-hf_token = os.getenv("HF_TOKEN")  # Ensure HF_TOKEN is set in Heroku config
-repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repo name
-# Load the model only once
-try:
-    model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
-except Exception as e:
-    MODEL, TOKENIZER = None, None
-    print(f"Error loading model: {e}")
-
-# Add the 'youtube_spam_detection' directory to sys.path so we can import spam_detection.py
+# Add the 'models' directory (which contains spam_detection.py) to sys.path.
 current_dir = os.path.dirname(os.path.abspath(__file__))
-models_dir = os.path.join(current_dir, '..', 'youtube_spam_detection')
+models_dir = os.path.join(current_dir, '..', 'models')
 sys.path.append(models_dir)
 
+main = Blueprint('main', __name__)
+
+# YouTube API Key from environment variables
+YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+
 def get_video_id(url):
-    """
-    Extract video ID from YouTube URL
-    :param url:
-    :return:
-    """
     pattern = (
         r"(?:https?:\/\/)?(?:www\.)?"
         r"(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)"
@@ -41,12 +27,27 @@ def get_video_id(url):
     match = re.search(pattern, url)
     return match.group(1) if match else None
 
+
+def get_video_details(video_id):
+    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+    response = youtube.videos().list(part='snippet,statistics', id=video_id).execute()
+    if response['items']:
+        video = response['items'][0]
+        snippet = video['snippet']
+        stats = video.get('statistics', {})
+        return {
+            "title": snippet.get("title", "N/A"),
+            "channelTitle": snippet.get("channelTitle", "N/A"),
+            "description": snippet.get("description", ""),
+            "publishedAt": snippet.get("publishedAt", "N/A"),
+            "viewCount": stats.get("viewCount", "0"),
+            "likeCount": stats.get("likeCount", "0"),
+            "commentCount": stats.get("commentCount", "0")
+        }
+    return {}
+
+
 def fetch_comments(video_id, max_comments=100):
-    """
-    Fetch comments from a YouTube video
-    :param video_id:
-    :return:
-    """
     youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
     video_response = youtube.videos().list(part='snippet', id=video_id).execute()
     video_snippet = video_response['items'][0]['snippet']
@@ -62,78 +63,53 @@ def fetch_comments(video_id, max_comments=100):
                 maxResults=100,
                 pageToken=nextPageToken
             ).execute()
-
             for item in response['items']:
                 comment = item['snippet']['topLevelComment']['snippet']
                 if comment['authorChannelId']['value'] != uploader_channel_id:
-                    comments.append(comment['textDisplay'])
+                    comments.append({
+                        "text": comment['textDisplay'],
+                        "author": comment.get('authorDisplayName', 'Unknown'),
+                        "author_channel_id": comment['authorChannelId']['value']
+                    })
             nextPageToken = response.get('nextPageToken')
-
             if not nextPageToken:
                 break
-
         except Exception as e:
             return f"Error fetching comments: {e}"
     return comments
+
 
 def sentiment_scores(comment, analyzer):
     sentiment_dict = analyzer.polarity_scores(comment)
     return sentiment_dict['compound']
 
+
 def analyze_sentiment(comments):
-    """
-    Analyze sentiment of comments
-    :param comments:
-    :return:
-    """
-    hyperlink_pattern = re.compile(
-        r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    threshold_ratio = 0.1
-    relevant_comments = []
-    # cleaned comments by filtering URL and too many emojis with threshold
-    for comment_text in comments:
-        comment_text = comment_text.lower().strip()
-        emojis = emoji.emoji_count(comment_text)
-
-        text_characters = len(re.sub(r'\s', '', comment_text))
-
-        if (any(char.isalnum() for char in comment_text)) and not hyperlink_pattern.search(comment_text):
-            if emojis == 0 or (text_characters / (text_characters + emojis)) > threshold_ratio:
-                relevant_comments.append(comment_text)
-
-
     analyzer = SentimentIntensityAnalyzer()
-    analyzed_comments = []
-
-    for comment in relevant_comments:
-        score = sentiment_scores(comment, analyzer)
+    # Process each comment dict; add a "sentiment" key.
+    for comment in comments:
+        cleaned = comment["text"].lower().strip()
+        score = sentiment_scores(cleaned, analyzer)
         if score > 0.05:
-            sentiment = "Positive"
+            comment["sentiment"] = "Positive"
         elif score < -0.05:
-            sentiment = "Negative"
+            comment["sentiment"] = "Negative"
         else:
-            sentiment = "Neutral"
-        analyzed_comments.append({"text": comment, "sentiment": sentiment})
-    return analyzed_comments
+            comment["sentiment"] = "Neutral"
+    return comments
+
 
 def is_adult_content(comment):
-    """
-    Checks whether a comment might be pushing adult content.
-    This example uses a simple keyword-based method.
-    """
-    adult_keywords = [
-        "xxx", "porn", "adult video", "nude", "explicit", "sex", "hot", "adult"
-    ]
+    adult_keywords = ["xxx", "porn", "adult video", "nude", "explicit", "sex", "hot", "adult"]
     pattern = re.compile("|".join(adult_keywords), re.IGNORECASE)
     return bool(pattern.search(comment))
 
-# Use the Unsplash API to fetch images.
+
 def fetch_unsplash_images(query, per_page=1):
     unsplash_access_key = os.getenv("UNSPLASH_ACCESS_KEY")
     if not unsplash_access_key:
         print("UNSPLASH_ACCESS_KEY not set.")
         return []
-
     url = "https://api.unsplash.com/search/photos"
     params = {
         "query": query,
@@ -146,69 +122,81 @@ def fetch_unsplash_images(query, per_page=1):
     if response.status_code != 200:
         print("Error fetching images from Unsplash:", response.status_code, response.text)
         return []
-
     data = response.json()
-    image_urls = []
-    for photo in data.get("results", []):
-        image_urls.append(photo["urls"]["regular"])
+    image_urls = [photo["urls"]["regular"] for photo in data.get("results", [])]
     return image_urls
+
 
 @main.route("/", methods=["GET", "POST"])
 def index():
-    # Fetch hero and carousel images from Unsplash.
+    # Fetch images for hero and carousel.
     hero_images = fetch_unsplash_images("youtube", per_page=1)
     carousel_images = fetch_unsplash_images("technology", per_page=3)
+
     if request.method == "POST":
         url = request.form['youtube_url']
+        max_comments_str = request.form.get('max_comments', '100')
+        try:
+            max_comments = max(1, int(max_comments_str))
+        except ValueError:
+            max_comments = 100
         video_id = get_video_id(url)
-
         if not video_id:
             return render_template("index.html", error="Invalid YouTube URL",
                                    hero_images=hero_images, carousel_images=carousel_images)
 
-        comments = fetch_comments(video_id, max_comments=100)
-
-        if isinstance(comments, str): # Error case
+        # Get video details.
+        video_details = get_video_details(video_id)
+        # Fetch comments (with author info).
+        comments = fetch_comments(video_id, max_comments=max_comments)
+        if isinstance(comments, str):
             return render_template("index.html", error=comments,
                                    hero_images=hero_images, carousel_images=carousel_images)
 
         analyzed_comments = analyze_sentiment(comments)
 
-        # Initialize aggregate counters.
+        # Load spam detection model from Hugging Face Hub.
+        hf_token = os.getenv("HF_TOKEN")
+        repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repository name
+        try:
+            model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
+        except Exception as e:
+            return render_template("index.html", error=f"Error loading spam detection model: {e}",
+                                   hero_images=hero_images, carousel_images=carousel_images)
+
+        # Initialize counters.
         sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
         spam_counts = {"Spam": 0, "Not Spam": 0}
         adult_counts = {"Adult Content": 0, "Non Adult": 0}
         repeated_counts = {}
+        author_counts = {}
 
-        # Process each comment: classify spam and update aggregate counts.
         for item in analyzed_comments:
-            # Classify the comment and add the spam key.
             spam_result = classify_comment(item["text"], model, tokenizer)
             item["spam"] = spam_result
-            # Detect adult content.
+            sentiment_counts[item["sentiment"]] += 1
+            spam_counts[spam_result] += 1
             if is_adult_content(item["text"]):
                 item["adult"] = "Adult Content"
             else:
                 item["adult"] = "Non Adult"
-
-            # Update aggregate counts.
-            sentiment_counts[item["sentiment"]] += 1
-            spam_counts[spam_result] += 1
             adult_counts[item["adult"]] += 1
-
-            # Count repeated comments (using the original text).
+            # Count repeated comments.
             text = item["text"]
             repeated_counts[text] = repeated_counts.get(text, 0) + 1
+            # Count authors.
+            author = item.get("author", "Unknown")
+            author_counts[author] = author_counts.get(author, 0) + 1
 
-            # Filter repeated comments: only keep those that appear more than once.
         repeated_comments = {k: v for k, v in repeated_counts.items() if v > 1}
 
         return render_template("result.html",
+                               video_details=video_details,
                                sentiment_counts=sentiment_counts,
                                spam_counts=spam_counts,
                                adult_counts=adult_counts,
                                repeated_comments=repeated_comments,
+                               author_counts=author_counts,
                                hero_images=hero_images,
                                carousel_images=carousel_images)
     return render_template("index.html", hero_images=hero_images, carousel_images=carousel_images)
-

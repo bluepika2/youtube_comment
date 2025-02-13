@@ -61,6 +61,10 @@
             <label for="youtube_url" class="form-label">YouTube URL</label>
             <input type="text" class="form-control" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
           </div>
+          <div class="mb-3">
+            <label for="max_comments" class="form-label">Number of Comments to Analyze</label>
+            <input type="number" class="form-control" id="max_comments" name="max_comments" placeholder="100" value="100" min="1">
+          </div>
           <button type="submit" class="btn btn-primary">Fetch Comments & Analyze</button>
         </form>
       </div>
