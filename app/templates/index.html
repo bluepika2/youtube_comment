@@ -169,18 +169,48 @@
       {% if error %}
         <div class="alert alert-danger text-center" role="alert">{{ error }}</div>
       {% endif %}
-      <form action="/" method="post">
+      <form action="/" method="post" onsubmit="showLoading()">
         <div class="mb-3">
           <label for="youtube_url" class="form-label">YouTube URL</label>
-          <input type="text" class="form-control" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=..." required>
+          <div class="input-group">
+            <input type="text" class="form-control" id="youtube_url" name="youtube_url"
+              placeholder="https://www.youtube.com/watch?v=..." required oninput="updateVideoPreview()">
+            <button type="button" onclick="startVoiceInput()" class="btn btn-secondary">🎙️ Speak</button>
+          </div>
         </div>
         <div class="mb-3">
           <label for="max_comments" class="form-label">Number of Comments to Analyze</label>
           <input type="number" class="form-control" id="max_comments" name="max_comments" placeholder="100" value="100" min="1">
         </div>
+        <div class="mb-3">
+          <label for="keyword_filter" class="form-label">Filter Comments by Keyword (Optional)</label>
+          <input type="text" class="form-control" id="keyword_filter" name="keyword_filter" placeholder="e.g., spam, scam, fake">
+        </div>
         <button type="submit" class="btn btn-modern w-100">Analyze Comments</button>
       </form>
+
+      <!-- Loading Spinner (Initially Hidden) -->
+      <div id="loadingSpinner" class="text-center mt-3" style="display: none;">
+          <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Analyzing...</span>
+          </div>
+      </div>
     </div>
+  </div>
+
+ <!-- Video Preview -->
+  <div id="videoPreview" class="video-container">
+    <iframe id="videoFrame" frameborder="0" allowfullscreen></iframe>
+  </div>
+
+  <!-- Recent Analysis History -->
+  <div class="container my-4">
+    <h4>Recently Analyzed Videos</h4>
+    <ul>
+      {% for vid in session['recent_videos'] %}
+      <li><a href="https://www.youtube.com/watch?v={{ vid }}" target="_blank">Video {{ loop.index }}</a></li>
+      {% endfor %}
+    </ul>
   </div>
 
     <!-- Carousel Section -->
@@ -224,6 +254,42 @@
     <p>&copy; 2025 YouTube Spam Detector. Made with ❤️</p>
   </footer>
 
+  <!-- Scripts -->
+  <script>
+    function updateVideoPreview() {
+      let url = document.getElementById('youtube_url').value;
+      let videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/)([^&?\/]{11}))/);
+
+      if (videoIdMatch) {
+          let videoId = videoIdMatch[1];
+          document.getElementById('videoFrame').src = "https://www.youtube.com/embed/" + videoId;
+          document.getElementById('videoPreview').style.display = "block";
+      }
+    }
+
+    function startVoiceInput() {
+      let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.onresult = function(event) {
+          document.getElementById("youtube_url").value = event.results[0][0].transcript;
+          updateVideoPreview();
+      };
+      recognition.start();
+    }
+
+    function showLoading() {
+      document.getElementById('loadingSpinner').style.display = "block";
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+          document.getElementById('loadingSpinner').style.display = "none";
+    })
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (localStorage.getItem("theme")) {
+        setTheme(localStorage.getItem("theme"));
+      }
+    });
+  </script>
+
   <!-- Bootstrap Bundle & Dark Mode Script -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -239,8 +305,6 @@
       }
     });
   </script>
- <!-- Bootstrap Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- Theme Selector Script -->
   <script>

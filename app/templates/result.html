@@ -1,143 +1,544 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spam Detection Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { padding-top: 70px; background-color: #f8f9fa; }
-        .container { max-width: 1100px; }
-        .chart-container { margin-bottom: 2rem; }
-    </style>
+  <meta charset="UTF-8">
+  <title>YouTube Spam Detector Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <!-- Font Awesome for Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    integrity="sha512-..."
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+
+  <!-- DataTables CSS -->
+  <link
+    rel="stylesheet"
+    type="text/css"
+    href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css"
+  >
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      /* Primary accent color (modern purple/indigo) */
+      --primary-color: #6366f1;
+      /* Secondary accent color (optional) */
+      --secondary-color: #a855f7;
+      /* Background and text */
+      --background-color: #f0f4f9;
+      --dark-background-color: #121212;
+      --text-color: #333;
+      /* Cards & Shadows */
+      --card-bg: #ffffff;
+      --dark-card-bg: #1e1e1e;
+      --card-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+      --border-radius: 12px;
+      /* Font & transitions */
+      --font-family: 'Nunito Sans', sans-serif;
+      --transition-speed: 0.4s;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--background-color);
+      color: var(--text-color);
+      padding-top: 70px;
+      transition: background var(--transition-speed), color var(--transition-speed);
+      min-height: 100vh;
+    }
+
+    /* Dark Mode */
+    .dark-mode {
+      background: var(--dark-background-color) !important;
+      color: #e0e0e0 !important;
+    }
+    .dark-mode .card,
+    .dark-mode .table thead,
+    .dark-mode .navbar,
+    .dark-mode .alert,
+    .dark-mode .kpi-card,
+    .dark-mode .custom-card,
+    .dark-mode .chart-container {
+      background: var(--dark-card-bg) !important;
+      color: #e0e0e0 !important;
+    }
+    .dark-mode .table tbody tr {
+      background: #2b2b2b;
+    }
+    .dark-mode .table tbody tr:hover {
+      background: #3c3c3c;
+    }
+
+    /* Navbar with a subtle gradient */
+    .navbar {
+      background: linear-gradient(to right, var(--primary-color), var(--secondary-color)) !important;
+      box-shadow: var(--card-shadow);
+    }
+    .navbar-brand {
+      font-weight: 700;
+    }
+
+    /* Dashboard Header */
+    .dashboard-header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .dashboard-header h1 {
+      font-weight: 700;
+      font-size: 1.8rem;
+      margin-bottom: 0.2rem;
+    }
+    .dashboard-header p {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    /* KPI Cards (Stats) */
+    .kpi-card {
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border-radius: var(--border-radius);
+      padding: 1rem;
+      transition: transform var(--transition-speed);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+    }
+    .kpi-card:hover {
+      transform: translateY(-3px);
+    }
+    .kpi-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary-color);
+    }
+    .kpi-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 0.2rem;
+    }
+    .kpi-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    /* Cards */
+    .custom-card {
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border-radius: var(--border-radius);
+      margin-bottom: 1.5rem;
+      transition: transform var(--transition-speed);
+    }
+    .custom-card:hover {
+      transform: translateY(-3px);
+    }
+    .custom-card-header {
+      background: var(--primary-color);
+      color: #fff;
+      border-top-left-radius: var(--border-radius);
+      border-top-right-radius: var(--border-radius);
+      padding: 0.8rem 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+    }
+    .custom-card-header i {
+      margin-right: 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    /* Table Styling */
+    .table-modern {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 0.5rem;
+    }
+    .table-modern thead tr {
+      background: #f1f1f1;
+      border-radius: var(--border-radius);
+    }
+    .table-modern tbody tr {
+      background: #fff;
+      box-shadow: var(--card-shadow);
+    }
+    .table-modern tbody tr:hover {
+      background: #f8f8f8;
+    }
+
+    /* Chart Container */
+    .chart-container {
+      margin-bottom: 1.5rem;
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border-radius: var(--border-radius);
+      padding: 1rem;
+      transition: transform var(--transition-speed);
+    }
+    .chart-container:hover {
+      transform: translateY(-3px);
+    }
+    .chart-title {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #555;
+      display: flex;
+      align-items: center;
+      font-size: 1rem;
+    }
+    .chart-title i {
+      margin-right: 0.5rem;
+      color: var(--primary-color);
+    }
+  </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-        <div class="container">
-            <a class="navbar-brand" href="/">YouTube Spam Detector Dashboard</a>
-        </div>
-    </nav>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/">YouTube Spam Detector</a>
+    </div>
+  </nav>
 
-    <div class="container mt-5">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3>Video Details</h3>
-            </div>
-            <div class="card-body">
-                <h4>{{ video_details.title }}</h4>
-                <p><strong>Channel:</strong> {{ video_details.channelTitle }}</p>
-                <p><strong>Published At:</strong> {{ video_details.publishedAt }}</p>
-                <p><strong>Views:</strong> {{ video_details.viewCount }} | <strong>Likes:</strong> {{ video_details.likeCount }} | <strong>Comments:</strong> {{ video_details.commentCount }}</p>
-                <p>{{ video_details.description }}</p>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-4 chart-container">
-                <canvas id="sentimentChart"></canvas>
-            </div>
-            <div class="col-md-4 chart-container">
-                <canvas id="spamChart"></canvas>
-            </div>
-            <div class="col-md-4 chart-container">
-                <canvas id="adultChart"></canvas>
-            </div>
-        </div>
-
-        <div class="row mt-5">
-            <div class="col-12">
-                <h3>Repeated Comments</h3>
-                {% if repeated_comments %}
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Comment</th>
-                            <th>Count</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for comment, count in repeated_comments.items() %}
-                        <tr>
-                            <td>{{ comment }}</td>
-                            <td>{{ count }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                  <p>No repeated comments found.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="row mt-5">
-            <div class="col-12">
-                <h3>Top Commenters</h3>
-                {% if author_counts %}
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Author</th>
-                            <th>Number of Comments</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for author, count in author_counts.items() %}
-                        <tr>
-                            <td>{{ author }}</td>
-                            <td>{{ count }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                  <p>No author data available.</p>
-                {% endif %}
-            </div>
-        </div>
+  <!-- Main Container -->
+  <div class="container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header mt-4">
+      <h1>Global Overview</h1>
+      <p class="text-muted">Analytics & Insights on Video Comments</p>
     </div>
 
-    <script>
-        const sentimentCounts = {{ sentiment_counts | tojson }};
-        const spamCounts = {{ spam_counts | tojson }};
-        const adultCounts = {{ adult_counts | tojson }};
+    <!-- KPI Row -->
+    <div class="row g-3 mb-4">
+      <!-- Video Title (treated as a KPI) -->
+      <div class="col-md-3">
+        <div class="kpi-card">
+          <div class="kpi-icon"><i class="fas fa-film"></i></div>
+          <div class="kpi-title">Video Title</div>
+          <div class="kpi-value" style="font-size:1rem;">{{ video_details.title }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="kpi-card">
+          <div class="kpi-icon"><i class="fas fa-eye"></i></div>
+          <div class="kpi-title">Views</div>
+          <div class="kpi-value">{{ video_details.viewCount }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="kpi-card">
+          <div class="kpi-icon"><i class="fas fa-thumbs-up"></i></div>
+          <div class="kpi-title">Likes</div>
+          <div class="kpi-value">{{ video_details.likeCount }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="kpi-card">
+          <div class="kpi-icon"><i class="fas fa-comments"></i></div>
+          <div class="kpi-title">Comments</div>
+          <div class="kpi-value">{{ video_details.commentCount }}</div>
+        </div>
+      </div>
+    </div>
 
-        new Chart(document.getElementById('sentimentChart'), {
-            type: 'pie',
-            data: {
-                labels: Object.keys(sentimentCounts),
-                datasets: [{
-                    data: Object.values(sentimentCounts),
-                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
-                }]
+    <!-- Row for Additional Info: Recent Videos, Keyword Filter, etc. -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="custom-card">
+          <div class="custom-card-header">
+            <i class="fas fa-history"></i> Recent Analyzed Videos
+          </div>
+          <div class="card-body">
+            {% if recent_videos %}
+              <ul class="list-group list-group-flush">
+                {% for vid in recent_videos %}
+                  <li class="list-group-item">
+                    <a href="https://www.youtube.com/watch?v={{ vid }}" target="_blank">
+                      Video {{ loop.index }}
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>No recent video history available.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        {% if keyword_filter %}
+          <div class="alert alert-info shadow-sm" style="border-radius: var(--border-radius);">
+            <strong>Keyword Filter Applied:</strong> "{{ keyword_filter }}"
+          </div>
+        {% else %}
+          <div class="alert alert-secondary shadow-sm" style="border-radius: var(--border-radius);">
+            <strong>No Keyword Filter Applied</strong>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="chart-container">
+          <div class="chart-title">
+            <i class="fas fa-smile"></i> Sentiment Analysis
+          </div>
+          <canvas id="sentimentChart"></canvas>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="chart-container">
+          <div class="chart-title">
+            <i class="fas fa-exclamation-triangle"></i> Spam Detection
+          </div>
+          <canvas id="spamChart"></canvas>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="chart-container">
+          <div class="chart-title">
+            <i class="fas fa-user-shield"></i> Adult Content Analysis
+          </div>
+          <canvas id="adultChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comments Table -->
+    <div class="custom-card mb-4">
+      <div class="custom-card-header">
+        <i class="fas fa-comments"></i> Comments Analysis
+      </div>
+      <div class="card-body">
+        <table id="commentsTable" class="table-modern table table-hover w-100">
+          <thead>
+            <tr>
+              <th>Comment</th>
+              <th>Sentiment</th>
+              <th>Spam</th>
+              <th>Adult Content</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for comment in analyzed_comments %}
+            <tr>
+              <td>{{ comment.text }}</td>
+              <td>{{ comment.sentiment }}</td>
+              <td>{{ comment.spam }}</td>
+              <td>{{ comment.adult }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Repeated Comments & Top Commenters Section -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="custom-card">
+          <div class="custom-card-header">
+            <i class="fas fa-sync-alt"></i> Repeated Comments
+          </div>
+          <div class="card-body">
+            {% if repeated_comments %}
+              <table class="table-modern table table-hover w-100">
+                <thead>
+                  <tr>
+                    <th>Comment</th>
+                    <th>Count</th>
+                    <th>Authors</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for comment, info in repeated_comments.items() %}
+                  <tr>
+                    <td>{{ comment }}</td>
+                    <td>{{ info.count }}</td>
+                    <td>{{ info.authors | join(', ') }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p>No repeated comments found.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="custom-card">
+          <div class="custom-card-header">
+            <i class="fas fa-users"></i> Top Commenters
+          </div>
+          <div class="card-body">
+            {% if top_commenters %}
+              <table class="table-modern table table-hover w-100">
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Comments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for author, count in top_commenters %}
+                  <tr>
+                    <td>{{ author }}</td>
+                    <td>{{ count }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p>No author data available.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery, DataTables, Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script
+    src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"
+    defer
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    defer
+  ></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Dark Mode Check
+      if (localStorage.getItem("darkMode") === "true") {
+        document.body.classList.add("dark-mode");
+      }
+
+      // Initialize DataTable
+      $('#commentsTable').DataTable({
+        pageLength: 10,
+        lengthChange: false,
+        ordering: true
+      });
+
+      // Chart Data
+      const sentimentCounts = {{ sentiment_counts | tojson }};
+      const spamCounts = {{ spam_counts | tojson }};
+      const adultCounts = {{ adult_counts | tojson }};
+
+      // Chart Options with updated vibrant colors
+      const chartOptions = {
+        responsive: true,
+        animation: {
+          duration: 1200,
+          easing: 'easeInOutCubic'
+        },
+        plugins: {
+          tooltip: { enabled: true },
+          legend: {
+            labels: {
+              font: {
+                family: 'Nunito Sans'
+              }
             }
-        });
-
-        new Chart(document.getElementById('spamChart'), {
-            type: 'bar',
-            data: {
-                labels: Object.keys(spamCounts),
-                datasets: [{
-                    data: Object.values(spamCounts),
-                    backgroundColor: ['#dc3545', '#28a745']
-                }]
-            },
-            options: { scales: { y: { beginAtZero: true } } }
-        });
-
-        new Chart(document.getElementById('adultChart'), {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(adultCounts),
-                datasets: [{
-                    data: Object.values(adultCounts),
-                    backgroundColor: ['#dc3545', '#28a745']
-                }]
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              font: {
+                family: 'Nunito Sans'
+              },
+              color: '#555'
             }
-        });
-    </script>
+          },
+          y: {
+            ticks: {
+              font: {
+                family: 'Nunito Sans'
+              },
+              color: '#555'
+            }
+          }
+        }
+      };
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+      // Sentiment Chart
+      new Chart(document.getElementById('sentimentChart'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(sentimentCounts),
+          datasets: [{
+            data: Object.values(sentimentCounts),
+            backgroundColor: [
+              '#8b5cf6', // vibrant purple
+              '#facc15', // vibrant yellow
+              '#ef4444'  // vibrant red
+            ]
+          }]
+        },
+        options: chartOptions
+      });
+
+      // Spam Chart
+      new Chart(document.getElementById('spamChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(spamCounts),
+          datasets: [{
+            data: Object.values(spamCounts),
+            backgroundColor: [
+              '#ef4444', // red for "Spam"
+              '#10b981'  // green for "Not Spam"
+            ]
+          }]
+        },
+        options: chartOptions
+      });
+
+      // Adult Content Chart
+      new Chart(document.getElementById('adultChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(adultCounts),
+          datasets: [{
+            data: Object.values(adultCounts),
+            backgroundColor: [
+              '#ef4444', // red for "Adult Content"
+              '#3b82f6'  // blue for "Non Adult"
+            ]
+          }]
+        },
+        options: chartOptions
+      });
+    });
+  </script>
 </body>
 </html>
