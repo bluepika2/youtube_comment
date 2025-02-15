@@ -14,13 +14,7 @@ class YouTubeCommentGenerator:
     def __init__(self, model_name="gpt2", dataset=None, model_path=None, comment_type="spam"):
         """
         Initializes the model and tokenizer.
-        If a fine-tuned model exists at the given path, it can be loaded; otherwise, the base GPT-2 model is used.
-
-        Args:
-            model_name (str): Base model name.
-            dataset: Dataset (CSV file path or list of comments) for fine-tuning.
-            model_path (str): Directory to save/load the fine-tuned model.
-            comment_type (str): Either "spam" or "nonspam", determining which data to fine-tune on.
+        Loads the model from the given path if it exists, otherwise loads the base GPT-2 model.
         """
         self.dataset = None
         self.comment_type = comment_type.lower()
@@ -49,7 +43,6 @@ class YouTubeCommentGenerator:
         - Collapses multiple spaces and repeated punctuation.
         - Removes specific unwanted patterns like variations of "br /".
         """
-        # Convert emojis to textual representation.
         text = emoji.demojize(text)
         text = text.lower()
         allowed_chars = r"a-zA-Z0-9\s.,=!?\'\":;/\-\@\#\%\&"
@@ -64,9 +57,10 @@ class YouTubeCommentGenerator:
         Loads and processes the dataset from a list of strings or CSV file.
         If the CSV file contains a "label" column, it filters the data based on the desired comment type.
         For spam fine-tuning, only rows with label 1 are kept; for non-spam, only rows with label 0.
+        After filtering, the "label" column is dropped so that it is not passed to the model.
         """
         if isinstance(dataset, list):
-            df = pd.DataFrame(dataset, columns=["comment"])
+            df = pd.DataFrame(dataset, columns=["CONTENT"])
         elif isinstance(dataset, str):
             df = pd.read_csv(dataset)
         else:
@@ -78,12 +72,18 @@ class YouTubeCommentGenerator:
                 df = df[df["label"] == 1]
             elif self.comment_type == "nonspam":
                 df = df[df["label"] == 0]
+            # Drop the label column for unsupervised LM fine-tuning.
+            df = df.drop(columns=["label"])
+
+        # Rename the comment column to "CONTENT" if needed.
+        if "comment" in df.columns and "CONTENT" not in df.columns:
+            df = df.rename(columns={"comment": "CONTENT"})
 
         dataset = Dataset.from_pandas(df)
 
         def tokenize_function(examples):
             """Cleans and tokenizes text data."""
-            cleaned_texts = [self.clean_text(text) for text in examples["comment"]]
+            cleaned_texts = [self.clean_text(text) for text in examples["CONTENT"]]
             return self.tokenizer(cleaned_texts, truncation=True, padding="max_length", max_length=128)
 
         dataset = dataset.map(tokenize_function, batched=True)
@@ -139,7 +139,6 @@ class YouTubeCommentGenerator:
         else:
             prompt = self.clean_text(prompt)
 
-        # Append style-specific continuation.
         if self.comment_type == "nonspam":
             prompt = prompt + " i think"
         else:
@@ -159,7 +158,6 @@ class YouTubeCommentGenerator:
             pad_token_id=self.tokenizer.eos_token_id
         )
         generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove the prompt portion from the generated text.
         generated_comment = self.clean_generated_text(generated_text[len(prompt):].strip())
         return generated_comment
 
@@ -222,22 +220,16 @@ if __name__ == "__main__":
     for i in range(5):
         log.info(nonspam_generator.generate_comment())
 
-    # ---- New Section: Generate Synthetic Comments Based on Original File ----
-    # Load the original dataset
+    # ---- Generate Synthetic Comments for All Original Comments ----
     original_df = pd.read_csv(sample_comments)
     synthetic_comments = []
-    # For each original comment, generate 5 synthetic comments using the corresponding model.
     for idx, row in original_df.iterrows():
-        # Determine the text and label from the original row
-        # Check for either "comment" or "CONTENT" column
-        original_text = row.get("comment")
+        original_text = row.get("comment", row.get("CONTENT", ""))
         label = row.get("label", None)
         if not original_text or label is None:
-            continue  # Skip rows with missing data
-
+            continue
         if label == 1:
-            # For spam comments, use the spam generator
-            for i in range(5):
+            for _ in range(5):
                 synthetic = spam_generator.generate_comment(prompt=original_text)
                 synthetic_comments.append({
                     "original_comment": original_text,
@@ -245,16 +237,13 @@ if __name__ == "__main__":
                     "label": 1
                 })
         elif label == 0:
-            # For non-spam comments, use the nonspam generator
-            for i in range(5):
+            for _ in range(5):
                 synthetic = nonspam_generator.generate_comment(prompt=original_text)
                 synthetic_comments.append({
                     "original_comment": original_text,
                     "synthetic_comment": synthetic,
                     "label": 0
                 })
-
-    # Save all generated synthetic comments to CSV
     synthetic_df = pd.DataFrame(synthetic_comments)
     synthetic_df.to_csv("all_generated_comments.csv", index=False)
     log.info("All generated synthetic comments saved to all_generated_comments.csv")
