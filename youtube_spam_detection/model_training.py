@@ -1,7 +1,10 @@
 import os
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments, EarlyStoppingCallback
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import logging
+log = logging.getLogger(__name__)
+
 
 def tokenize_function(examples, tokenizer):
     """Tokenizes dataset for Transformer models"""
@@ -51,7 +54,7 @@ def train_model(model_name, train_dataset, test_dataset):
         learning_rate=2e-5,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
-        num_train_epochs=1,
+        num_train_epochs=3,
         weight_decay=0.01,
         load_best_model_at_end=True
     )
@@ -61,7 +64,8 @@ def train_model(model_name, train_dataset, test_dataset):
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
     )
 
     trainer.train()
@@ -76,10 +80,10 @@ def load_or_train_model(model_name, train_dataset, test_dataset):
     """
     model_dir = f"./{model_name}-spam-model"
     if os.path.exists(model_dir):
-        print(f"Found {model_dir} directory. Load the model without training")
+        log.info(f"Found {model_dir} directory. Load the model without training")
         tokenizer = AutoTokenizer.from_pretrained(model_dir)
         model = AutoModelForSequenceClassification.from_pretrained(model_dir)
         return model, tokenizer
     else:
-        print(f"Model directory {model_dir} not found. Training model {model_name}...")
+        log.info(f"Model directory {model_dir} not found. Training model {model_name}...")
         return train_model(model_name, train_dataset, test_dataset)
