@@ -20,6 +20,21 @@ main = Blueprint('main', __name__)
 # YouTube API Key from environment variables
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 
+# Global variables to cache the model and tokenizer
+model, tokenizer = None, None
+
+def get_model():
+    """Load and return the model and tokenizer only once."""
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        hf_token = os.getenv("HF_TOKEN")
+        repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repository name
+        try:
+            model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
+        except Exception as e:
+            raise Exception(f"Error loading spam detection model: {e}")
+    return model, tokenizer
+
 def prepare_display_text(text: str) -> str:
     """
     Prepares a version of the text for display by unescaping HTML entities
@@ -27,9 +42,7 @@ def prepare_display_text(text: str) -> str:
     """
     if not isinstance(text, str):
         return ""
-    # Unescape HTML entities (e.g., &#39; -> ')
     text = html.unescape(text)
-    # Remove <br> tags (and similar HTML tags)
     text = re.sub(r'<br\s*/?>', ' ', text)
     text = re.sub(r'<[^>]+>', '', text)
     return text.strip()
@@ -100,7 +113,6 @@ def sentiment_scores(comment, analyzer):
 
 def analyze_sentiment(comments):
     analyzer = SentimentIntensityAnalyzer()
-    # Process each comment dict; add a "sentiment" key.
     for comment in comments:
         cleaned = comment["text"].lower().strip()
         score = sentiment_scores(cleaned, analyzer)
@@ -148,7 +160,6 @@ def index():
     hero_images = fetch_unsplash_images("youtube", per_page=1)
     carousel_images = fetch_unsplash_images("technology", per_page=3)
 
-    # Ensure session is initialized
     session.setdefault('recent_videos', [])
 
     if request.method == "POST":
@@ -166,49 +177,37 @@ def index():
             return render_template("index.html", error="Invalid YouTube URL",
                                    hero_images=hero_images, carousel_images=carousel_images)
 
-        # Save video to recent history
         if video_id not in session['recent_videos']:
             session['recent_videos'].insert(0, video_id)
-            session['recent_videos'] = session['recent_videos'][:5]  # Keep only last 5
+            session['recent_videos'] = session['recent_videos'][:5]
 
-        # Get video details.
         video_details = get_video_details(video_id)
-
-        # Fetch comments (with author info).
         comments = fetch_comments(video_id, max_comments=max_comments)
         if isinstance(comments, str):
             return render_template("index.html", error=comments,
                                    hero_images=hero_images, carousel_images=carousel_images)
 
-        # Filter comments by keyword if specified
         if keyword_filter:
             comments = [c for c in comments if keyword_filter in c['text'].lower()]
 
-        # After fetching comments
         for i, comment in enumerate(comments):
-            # Store the original text
             comments[i]["original_text"] = comment["text"]
-            # Clean for model input (already using your clean_text function)
             comments[i]["text"] = clean_text(comment["text"])
-            # Prepare a display version that unescapes HTML entities and removes HTML tags
             comments[i]["display_text"] = prepare_display_text(comment["original_text"])
 
         analyzed_comments = analyze_sentiment(comments)
 
-        # Load spam detection model from Hugging Face Hub.
-        hf_token = os.getenv("HF_TOKEN")
-        repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repository name
+        # Load the model and tokenizer only once using get_model()
         try:
-            model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
+            model, tokenizer = get_model()
         except Exception as e:
-            return render_template("index.html", error=f"Error loading spam detection model: {e}",
+            return render_template("index.html", error=f"{e}",
                                    hero_images=hero_images, carousel_images=carousel_images)
 
-        # Initialize counters.
         sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
         spam_counts = {"Spam": 0, "Not Spam": 0}
         adult_counts = {"Adult Content": 0, "Non Adult": 0}
-        repeated_comments = {}  # Dictionary for repeated comments with count and authors.
+        repeated_comments = {}
         author_counts = {}
 
         for item in analyzed_comments:
@@ -231,10 +230,7 @@ def index():
 
             author_counts[author] = author_counts.get(author, 0) + 1
 
-        # Keep only repeated comments (appearing more than once)
         repeated_comments = {k: v for k, v in repeated_comments.items() if v["count"] > 1}
-
-        # Sort authors by number of comments and get top 5.
         top_commenters = sorted(author_counts.items(), key=lambda x: x[1], reverse=True)[:5]
 
         session['recent_videos'] = [video_id] + session.get('recent_videos', [])[:4]
