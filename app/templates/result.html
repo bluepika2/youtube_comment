@@ -100,10 +100,11 @@
       font-size: 0.95rem;
     }
 
-    /* KPI Cards */
+    /* KPI Cards - Enhanced for better visibility */
     .kpi-card {
-      background: var(--card-bg);
-      box-shadow: var(--card-shadow);
+      background: linear-gradient(145deg, #ffffff, #f1f3f5);
+      border: 1px solid #d1d9e6;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
       border-radius: var(--border-radius);
       padding: 1rem;
       transition: transform var(--transition-speed);
@@ -160,34 +161,51 @@
       font-size: 1.2rem;
     }
 
-    /* Table Styling */
+    /* Stylish Table Styling for "Comments Analysis" */
     .table-modern {
       width: 100%;
       border-collapse: separate;
       border-spacing: 0 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
     }
-    .table-modern thead tr {
-      background: #f1f1f1;
-      border-radius: var(--border-radius);
+    .table-modern thead {
+      background: linear-gradient(90deg, #e3e7ed, #ffffff);
+      color: #444;
+      font-weight: bold;
+      border-bottom: 2px solid #ccc;
+    }
+    .table-modern thead th {
+      border: none;
+      padding: 0.75rem 1rem;
     }
     .table-modern tbody tr {
-      background: var(--card-bg);
-      box-shadow: var(--card-shadow);
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, background 0.2s;
     }
     .table-modern tbody tr:hover {
-      background: #f8f8f8;
+      background: #f9f9f9;
+      transform: translateY(-2px);
+    }
+    .table-modern tbody td {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #f0f0f0;
+      border-bottom: 1px solid #f0f0f0;
     }
 
-    /* Chart Container */
+    /* Chart Container - Matching KPI styling */
     .chart-container {
-      margin-bottom: 1.5rem;
-      background: var(--card-bg);
-      box-shadow: var(--card-shadow);
+      background: linear-gradient(145deg, #ffffff, #f1f3f5);
+      border: 1px solid #d1d9e6;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
       border-radius: var(--border-radius);
       padding: 1rem;
       transition: transform var(--transition-speed);
       height: 300px;
       overflow: hidden;
+      margin-bottom: 1.5rem;
     }
     .chart-container:hover {
       transform: translateY(-3px);
@@ -247,21 +265,27 @@
         <div class="kpi-card">
           <div class="kpi-icon"><i class="fas fa-eye"></i></div>
           <div class="kpi-title">Views</div>
-          <div class="kpi-value">{{ video_details.viewCount }}</div>
+          <div class="kpi-value">
+            {{ '{:,}'.format(video_details.viewCount|int) }}
+          </div>
         </div>
       </article>
       <article class="col-md-3">
         <div class="kpi-card">
           <div class="kpi-icon"><i class="fas fa-thumbs-up"></i></div>
           <div class="kpi-title">Likes</div>
-          <div class="kpi-value">{{ video_details.likeCount }}</div>
+          <div class="kpi-value">
+            {{ '{:,}'.format(video_details.likeCount|int) }}
+          </div>
         </div>
       </article>
       <article class="col-md-3">
         <div class="kpi-card">
           <div class="kpi-icon"><i class="fas fa-comments"></i></div>
           <div class="kpi-title">Comments</div>
-          <div class="kpi-value">{{ video_details.commentCount }}</div>
+          <div class="kpi-value">
+            {{ '{:,}'.format(video_details.commentCount|int) }}
+          </div>
         </div>
       </article>
     </section>
@@ -305,6 +329,7 @@
 
     <!-- Chart Section -->
     <section class="row g-3 mb-4">
+      <!-- Sentiment Donut Chart -->
       <article class="col-md-4">
         <div class="chart-container">
           <div class="chart-title">
@@ -313,6 +338,7 @@
           <canvas id="sentimentChart" aria-label="Sentiment Chart" role="img"></canvas>
         </div>
       </article>
+      <!-- Spam Donut Chart -->
       <article class="col-md-4">
         <div class="chart-container">
           <div class="chart-title">
@@ -321,6 +347,7 @@
           <canvas id="spamChart" aria-label="Spam Chart" role="img"></canvas>
         </div>
       </article>
+      <!-- Adult Content Donut Chart -->
       <article class="col-md-4">
         <div class="chart-container">
           <div class="chart-title">
@@ -443,17 +470,31 @@
       const savedTheme = localStorage.getItem("theme");
       if (savedTheme) setTheme(savedTheme);
 
-      // Initialize DataTable
+      // Initialize DataTable with no global search (we'll use column search)
       $('#commentsTable').DataTable({
         pageLength: 10,
         lengthChange: false,
         ordering: true
       });
 
-      // Chart Data
+      // Chart Data from backend
       const sentimentCounts = {{ sentiment_counts | tojson }};
       const spamCounts = {{ spam_counts | tojson }};
       const adultCounts = {{ adult_counts | tojson }};
+
+      // Define ordered labels and map data accordingly
+
+      // Sentiment Chart
+      const sentimentOrderedLabels = ['Positive', 'Neutral', 'Negative'];
+      const sentimentOrderedData = sentimentOrderedLabels.map(label => sentimentCounts[label] || 0);
+
+      // Spam Chart
+      const spamOrderedLabels = ['Not Spam', 'Spam'];
+      const spamOrderedData = spamOrderedLabels.map(label => spamCounts[label] || 0);
+
+      // Adult Content Chart
+      const adultOrderedLabels = ['Non Adult', 'Adult Content'];
+      const adultOrderedData = adultOrderedLabels.map(label => adultCounts[label] || 0);
 
       // Updated Chart Options for Modernized Donut Charts
       const chartOptions = {
@@ -487,49 +528,76 @@
         }
       };
 
-      // Render Sentiment Chart as Doughnut with consistent modern palette
+      // Render Sentiment Chart with interactive onClick for filtering Sentiment (column 2)
       new Chart(document.getElementById('sentimentChart'), {
         type: 'doughnut',
         data: {
-          labels: Object.keys(sentimentCounts),
+          labels: sentimentOrderedLabels,
           datasets: [{
-            data: Object.values(sentimentCounts),
-            backgroundColor: ['#4CAF50', '#FFC107', '#F44336'], // Positive, Neutral, Negative
+            data: sentimentOrderedData,
+            backgroundColor: ['#4CAF50', '#FFC107', '#F44336'],
             borderColor: ['#ffffff', '#ffffff', '#ffffff'],
             borderWidth: 2
           }]
         },
-        options: chartOptions
+        options: Object.assign({}, chartOptions, {
+          onClick: function(evt, elements) {
+            if (elements.length > 0) {
+              const clickedIndex = elements[0].index;
+              const label = this.data.labels[clickedIndex];
+              // Filter the Sentiment column (index 2)
+              $('#commentsTable').DataTable().column(2).search(label).draw();
+            }
+          }
+        })
       });
 
-      // Render Spam Chart as Doughnut with consistent modern palette
+      // Render Spam Chart with interactive onClick for filtering Spam status (column 3)
       new Chart(document.getElementById('spamChart'), {
         type: 'doughnut',
         data: {
-          labels: Object.keys(spamCounts),
+          labels: spamOrderedLabels,
           datasets: [{
-            data: Object.values(spamCounts),
-            backgroundColor: ['#F44336', '#4CAF50'], // Spam, Not Spam
+            data: spamOrderedData,
+            backgroundColor: ['#4CAF50', '#F44336'],
             borderColor: ['#ffffff', '#ffffff'],
             borderWidth: 2
           }]
         },
-        options: chartOptions
+        options: Object.assign({}, chartOptions, {
+          onClick: function(evt, elements) {
+            if (elements.length > 0) {
+              const clickedIndex = elements[0].index;
+              const label = this.data.labels[clickedIndex];
+              // Filter the Spam column (index 3)
+              $('#commentsTable').DataTable().column(3).search(label).draw();
+            }
+          }
+        })
       });
 
-      // Render Adult Content Chart as Doughnut with consistent modern palette
+      // Render Adult Content Chart with interactive onClick for filtering Adult status (column 4)
       new Chart(document.getElementById('adultChart'), {
         type: 'doughnut',
         data: {
-          labels: Object.keys(adultCounts),
+          labels: adultOrderedLabels,
           datasets: [{
-            data: Object.values(adultCounts),
-            backgroundColor: ['#F44336', '#4CAF50'], // Adult Content, Non Adult
+            data: adultOrderedData,
+            backgroundColor: ['#4CAF50', '#F44336'],
             borderColor: ['#ffffff', '#ffffff'],
             borderWidth: 2
           }]
         },
-        options: chartOptions
+        options: Object.assign({}, chartOptions, {
+          onClick: function(evt, elements) {
+            if (elements.length > 0) {
+              const clickedIndex = elements[0].index;
+              const label = this.data.labels[clickedIndex];
+              // Filter the Adult Content column (index 4)
+              $('#commentsTable').DataTable().column(4).search(label).draw();
+            }
+          }
+        })
       });
     });
   </script>
