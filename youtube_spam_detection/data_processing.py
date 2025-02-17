@@ -1,4 +1,5 @@
 import re
+import html
 import emoji
 import pandas as pd
 from datasets import Dataset
@@ -17,6 +18,7 @@ def clean_text(text: str) -> str:
     # Convert emojis to text representation to preserve their meaning.
     if not isinstance(text, str):
         return ""
+    text = html.unescape(text)
     text = emoji.demojize(text)
     text = text.lower()
     # Allowed characters: letters, numbers, whitespace, common punctuation, and URL symbols (@, #, %)

@@ -4,9 +4,11 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import re
 import os
 import sys
+import html
 import emoji
 import requests
 from youtube_spam_detection.spam_detection import load_model_from_hub, classify_comment  # Import spam detection functions
+from youtube_spam_detection.data_processing import clean_text
 
 # Add the 'models' directory (which contains spam_detection.py) to sys.path.
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +19,20 @@ main = Blueprint('main', __name__)
 
 # YouTube API Key from environment variables
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+
+def prepare_display_text(text: str) -> str:
+    """
+    Prepares a version of the text for display by unescaping HTML entities
+    and removing HTML tags like <br>.
+    """
+    if not isinstance(text, str):
+        return ""
+    # Unescape HTML entities (e.g., &#39; -> ')
+    text = html.unescape(text)
+    # Remove <br> tags (and similar HTML tags)
+    text = re.sub(r'<br\s*/?>', ' ', text)
+    text = re.sub(r'<[^>]+>', '', text)
+    return text.strip()
 
 def get_video_id(url):
     pattern = (
@@ -102,7 +118,7 @@ def is_adult_content(comment):
     return bool(pattern.search(comment))
 
 def is_spam(comment):
-    spam_keywords = ["subscribe", "giveaway", "click here", "free", "earn money", "visit my channel"]
+    spam_keywords = ["subscribe", "giveaway", "click here", "earn money", "visit my channel"]
     return "Spam" if any(keyword in comment.lower() for keyword in spam_keywords) else "Not Spam"
 
 def fetch_unsplash_images(query, per_page=1):
@@ -168,6 +184,15 @@ def index():
         if keyword_filter:
             comments = [c for c in comments if keyword_filter in c['text'].lower()]
 
+        # After fetching comments
+        for i, comment in enumerate(comments):
+            # Store the original text
+            comments[i]["original_text"] = comment["text"]
+            # Clean for model input (already using your clean_text function)
+            comments[i]["text"] = clean_text(comment["text"])
+            # Prepare a display version that unescapes HTML entities and removes HTML tags
+            comments[i]["display_text"] = prepare_display_text(comment["original_text"])
+
         analyzed_comments = analyze_sentiment(comments)
 
         # Load spam detection model from Hugging Face Hub.
@@ -196,7 +221,7 @@ def index():
             item["adult"] = "Adult Content" if is_adult_content(item["text"]) else "Non Adult"
             adult_counts[item["adult"]] += 1
 
-            comment_text = item["text"]
+            comment_text = item["display_text"]
             if comment_text not in repeated_comments:
                 repeated_comments[comment_text] = {"count": 0, "authors": []}
             repeated_comments[comment_text]["count"] += 1

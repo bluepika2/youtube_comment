@@ -3,7 +3,7 @@ from data_processing import load_dataset, split_dataset
 from model_training import train_model
 from model_evaluation import evaluate_models
 from spam_detection import predict_comments
-import logging
+from logging_config import logging
 log = logging.getLogger(__name__)
 
 # Define dataset paths
@@ -69,9 +69,10 @@ models_to_test = ["distilbert-base-uncased", "bert-base-uncased", "roberta-base"
 # Train & Evaluate Models
 log.info("Training & Evaluating models on merged dataset...")
 evaluation_results = evaluate_models(models_to_test, train_dataset, test_dataset)
-
+for model_name, metrics in evaluation_results.items():
+    print(f"Model: {model_name}, Metrics: {metrics}")
 # Select the best model based on F1 score
-best_model_name = max(evaluation_results, key=lambda x: evaluation_results[x]['f1'])
+best_model_name = max(evaluation_results, key=lambda x: evaluation_results[x]['eval_recall'])
 best_metrics = evaluation_results[best_model_name]
 log.info(f"The best model is {best_model_name} with metrics: {best_metrics}")
 
