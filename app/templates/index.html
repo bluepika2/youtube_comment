@@ -198,6 +198,31 @@
     .theme-selector button {
       margin-right: 5px;
     }
+
+    /* Responsive Adjustments for Mobile Devices */
+    @media screen and (max-width: 576px) {
+      .hero {
+        height: 40vh;
+        padding: 10px;
+      }
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+      .hero p {
+        font-size: 1rem;
+      }
+      .form-container {
+        margin-top: -30px;
+        padding: 20px;
+      }
+      .carousel-inner img {
+        height: 200px;
+        object-fit: cover;
+      }
+      .recent-videos, .about {
+        padding: 0 10px;
+      }
+    }
   </style>
 </head>
 <body class="light-mode fade-in">
@@ -224,7 +249,7 @@
     <div class="hero-content">
       <h1 class="display-3 fw-bold">Detect Spam & Analyze Comments</h1>
       <p class="lead">Uncover spam, sentiment, and adult content in YouTube comments with AI-powered analysis.</p>
-      <a href="#analysis" class="btn btn-light btn-lg">Get Started</a>
+      <!-- "Get Started" button removed -->
     </div>
   </div>
 
