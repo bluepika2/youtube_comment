@@ -223,6 +223,25 @@
         padding: 0 10px;
       }
     }
+
+    /* Make placeholder text less visible */
+    input.form-control::placeholder {
+      color: rgba(0, 0, 0, 0.3) !important;
+    }
+    ::-webkit-input-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+    }
+    ::-moz-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+      opacity: 1;
+    }
+    :-ms-input-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+    }
+    :-moz-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+      opacity: 1;
+    }
   </style>
 </head>
 <body class="light-mode fade-in">
@@ -249,7 +268,6 @@
     <div class="hero-content">
       <h1 class="display-3 fw-bold">Detect Spam & Analyze Comments</h1>
       <p class="lead">Uncover spam, sentiment, and adult content in YouTube comments with AI-powered analysis.</p>
-      <!-- "Get Started" button removed -->
     </div>
   </div>
 
@@ -271,7 +289,7 @@
         </div>
         <div class="mb-3">
           <label for="max_comments" class="form-label">Number of Comments to Analyze</label>
-          <input type="number" class="form-control" id="max_comments" name="max_comments" placeholder="100" value="100" min="1">
+          <input type="text" class="form-control" id="max_comments" name="max_comments" placeholder="100" inputmode="numeric" pattern="\d*">
         </div>
         <div class="mb-3">
           <label for="keyword_filter" class="form-label">Filter Comments by Keyword (Optional)</label>

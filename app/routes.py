@@ -8,9 +8,8 @@ import html
 import emoji
 import requests
 from youtube_spam_detection.data_processing import clean_text
-# Note: We no longer need to import load_model_from_hub or classify_comment from spam_detection
 
-# Add the 'models' directory (if still needed for other processing) to sys.path.
+# Add the 'models' directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 models_dir = os.path.join(current_dir, '..', 'models')
 sys.path.append(models_dir)
