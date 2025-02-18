@@ -7,39 +7,19 @@ import sys
 import html
 import emoji
 import requests
-from youtube_spam_detection.spam_detection import load_model_from_hub, classify_comment  # Import spam detection functions
 from youtube_spam_detection.data_processing import clean_text
+# Note: We no longer need to import load_model_from_hub or classify_comment from spam_detection
 
-# Add the 'models' directory (which contains spam_detection.py) to sys.path.
+# Add the 'models' directory (if still needed for other processing) to sys.path.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 models_dir = os.path.join(current_dir, '..', 'models')
 sys.path.append(models_dir)
 
 main = Blueprint('main', __name__)
 
-# YouTube API Key from environment variables
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 
-# Global variables to cache the model and tokenizer
-model, tokenizer = None, None
-
-def get_model():
-    """Load and return the model and tokenizer only once."""
-    global model, tokenizer
-    if model is None or tokenizer is None:
-        hf_token = os.getenv("HF_TOKEN")
-        repo_name = "bluepika2/youtube-spam-detection"  # Replace with your HF repository name
-        try:
-            model, tokenizer = load_model_from_hub(repo_name, use_auth_token=hf_token)
-        except Exception as e:
-            raise Exception(f"Error loading spam detection model: {e}")
-    return model, tokenizer
-
 def prepare_display_text(text: str) -> str:
-    """
-    Prepares a version of the text for display by unescaping HTML entities
-    and removing HTML tags like <br>.
-    """
     if not isinstance(text, str):
         return ""
     text = html.unescape(text)
@@ -139,13 +119,8 @@ def fetch_unsplash_images(query, per_page=1):
         print("UNSPLASH_ACCESS_KEY not set.")
         return []
     url = "https://api.unsplash.com/search/photos"
-    params = {
-        "query": query,
-        "per_page": per_page
-    }
-    headers = {
-        "Authorization": f"Client-ID {unsplash_access_key}"
-    }
+    params = {"query": query, "per_page": per_page}
+    headers = {"Authorization": f"Client-ID {unsplash_access_key}"}
     response = requests.get(url, headers=headers, params=params)
     if response.status_code != 200:
         print("Error fetching images from Unsplash:", response.status_code, response.text)
@@ -154,12 +129,24 @@ def fetch_unsplash_images(query, per_page=1):
     image_urls = [photo["urls"]["regular"] for photo in data.get("results", [])]
     return image_urls
 
+def classify_comment_remote(comment_text):
+    """
+    Send the comment text to the remote inference service for classification.
+    Set the environment variable INFERENCE_SERVICE_URL to your inference service endpoint.
+    """
+    inference_url = os.getenv("INFERENCE_SERVICE_URL", "http://localhost:8000/classify")
+    try:
+        response = requests.post(inference_url, json={"comment_text": comment_text})
+        if response.status_code == 200:
+            return response.json().get("prediction")
+    except Exception as e:
+        print(f"Error calling inference service: {e}")
+    return "Not Spam"  # Fallback if service is unavailable
+
 @main.route("/", methods=["GET", "POST"])
 def index():
-    # Fetch images for hero and carousel.
     hero_images = fetch_unsplash_images("youtube", per_page=1)
     carousel_images = fetch_unsplash_images("technology", per_page=3)
-
     session.setdefault('recent_videos', [])
 
     if request.method == "POST":
@@ -197,13 +184,7 @@ def index():
 
         analyzed_comments = analyze_sentiment(comments)
 
-        # Load the model and tokenizer only once using get_model()
-        try:
-            model, tokenizer = get_model()
-        except Exception as e:
-            return render_template("index.html", error=f"{e}",
-                                   hero_images=hero_images, carousel_images=carousel_images)
-
+        # Use the remote inference service to classify comments
         sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
         spam_counts = {"Spam": 0, "Not Spam": 0}
         adult_counts = {"Adult Content": 0, "Non Adult": 0}
@@ -211,7 +192,8 @@ def index():
         author_counts = {}
 
         for item in analyzed_comments:
-            spam_result = classify_comment(item["text"], model, tokenizer)
+            # Call the remote inference service instead of local model
+            spam_result = classify_comment_remote(item["text"])
             rule_spam_result = is_spam(item["text"])
             item["spam"] = "Spam" if spam_result == "Spam" or rule_spam_result == "Spam" else "Not Spam"
             sentiment_counts[item["sentiment"]] += 1
