@@ -2,47 +2,469 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>YouTube Spam Detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Spam Detector</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
   <style>
+    /* Google Font */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
+      font-family: 'Poppins', sans-serif;
+      transition: all 0.5s ease-in-out;
     }
-    h1 {
-      color: #333;
+
+    /* Theme - Default */
+    body.light-mode { background-color: #f0f2f5; color: #333; }
+    body.dark-mode { background-color: #121212; color: #e0e0e0; }
+    body.neon-mode { background: #1a1a2e; color: #00f3ff; }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      background: linear-gradient(to right, rgba(0,0,0,0.7), rgba(0,0,0,0.3)),
+                  url('{{ hero_images[0] if hero_images else url_for("static", filename="hero.jpg") }}') no-repeat center center;
+      background-size: cover;
+      height: 60vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+      padding: 20px;
+      animation: fadeIn 1.5s ease-in-out;
     }
-    form {
-      margin-top: 1rem;
+
+    .hero-content {
+      max-width: 800px;
+      padding: 20px;
     }
-    input[type="text"] {
-      width: 60%;
-      padding: 0.5rem;
-      font-size: 1rem;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      margin-left: 0.5rem;
-      cursor: pointer;
-    }
-    .error {
-      color: red;
+
+    .hero h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(to right, #ff416c, #ff4b2b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       font-weight: bold;
-      margin-top: 1rem;
+      animation: fadeIn 1.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Glassmorphism Form - Updated with Decorative Side Gradients */
+    .form-container {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255,255,255,0.1));
+      border-radius: 15px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      padding: 30px;
+      max-width: 550px;
+      margin: auto;
+      margin-top: -50px;
+      z-index: 2;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Decorative gradients on the sides */
+    .form-container::before,
+    .form-container::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 50px;
+      z-index: -1;
+    }
+    .form-container::before {
+      left: 0;
+      background: linear-gradient(to right, rgba(255,255,255,0.2), transparent);
+    }
+    .form-container::after {
+      right: 0;
+      background: linear-gradient(to left, rgba(255,255,255,0.2), transparent);
+    }
+    .dark-mode .form-container {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    /* Floating Particles */
+    #particles-js {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Modern Button */
+    .btn-modern {
+      background: linear-gradient(to right, #ff416c, #ff4b2b);
+      border: none;
+      color: white;
+      padding: 12px 20px;
+      font-weight: bold;
+      border-radius: 50px;
+      transition: 0.3s ease;
+    }
+    .btn-modern:hover {
+      background: linear-gradient(to right, #ff4b2b, #ff416c);
+      transform: scale(1.05);
+      box-shadow: 0px 0px 15px rgba(255, 65, 108, 0.8);
+    }
+
+    /* Dark Mode Toggle */
+    .dark-toggle {
+      cursor: pointer;
+      font-size: 22px;
+    }
+
+    /* Organized Media Sections */
+    .media-section .card {
+      border: none;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .media-section .card-header {
+      background: var(--primary-color);
+      color: white;
+      text-align: center;
+      font-weight: bold;
+      padding: 10px;
+    }
+    .media-section .card-body {
+      padding: 0;
+    }
+    .media-container {
+      margin: 20px auto;
+    }
+    /* Video Preview & Embedded Video */
+    .video-container {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      max-height: 250px;
+    }
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    /* Carousel */
+    .carousel-inner img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+    }
+
+    /* Recently Analyzed Videos Section */
+    .recent-videos {
+      margin: 20px 0;
+      font-size: 0.95rem;
+    }
+
+    /* About Section */
+    .about {
+      margin-bottom: 30px;
+      font-size: 0.95rem;
+    }
+
+    /* Footer */
+    footer {
+      padding: 20px 0;
+      font-size: 0.9rem;
+    }
+
+    /* Theme Selector */
+    .theme-selector {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      z-index: 10;
+    }
+    .theme-selector button {
+      margin-right: 5px;
+    }
+
+    /* Responsive Adjustments for Mobile Devices */
+    @media screen and (max-width: 576px) {
+      .hero {
+        height: 40vh;
+        padding: 10px;
+      }
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+      .hero p {
+        font-size: 1rem;
+      }
+      .form-container {
+        margin-top: -30px;
+        padding: 20px;
+      }
+      .carousel-inner img {
+        height: 200px;
+        object-fit: cover;
+      }
+      .recent-videos, .about {
+        padding: 0 10px;
+      }
+    }
+
+    /* Make placeholder text less visible */
+    input.form-control::placeholder {
+      color: rgba(0, 0, 0, 0.3) !important;
+    }
+    ::-webkit-input-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+    }
+    ::-moz-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+      opacity: 1;
+    }
+    :-ms-input-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+    }
+    :-moz-placeholder {
+      color: rgba(0, 0, 0, 0.3);
+      opacity: 1;
     }
   </style>
 </head>
-<body>
-  <h1>YouTube Spam Detection</h1>
+<body class="light-mode fade-in">
+  <!-- Theme Selector -->
+  <div class="theme-selector">
+    <button class="btn btn-light" onclick="setTheme('light-mode')">☀ Light</button>
+    <button class="btn btn-dark" onclick="setTheme('dark-mode')">🌙 Dark</button>
+    <button class="btn btn-info text-white" onclick="setTheme('neon-mode')">💡 Neon</button>
+  </div>
 
-  {% if error %}
-    <div class="error">{{ error }}</div>
-  {% endif %}
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="/">🚀 YouTube Spam Detector</a>
+      <i class="fas fa-moon dark-toggle text-white ms-auto" onclick="toggleDarkMode()"></i>
+    </div>
+  </nav>
 
-  <form action="/" method="post">
-    <label for="youtube_url">Enter YouTube URL:</label><br>
-    <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
-    <button type="submit">Fetch Comments</button>
-  </form>
+  <!-- Particles Background -->
+  <div id="particles-js"></div>
+
+  <!-- Hero Section -->
+  <div class="hero">
+    <div class="hero-content">
+      <h1 class="display-3 fw-bold">Detect Spam & Analyze Comments</h1>
+      <p class="lead">Uncover spam, sentiment, and adult content in YouTube comments with AI-powered analysis.</p>
+    </div>
+  </div>
+
+  <!-- Input Form Section (Overlapping Hero) -->
+  <div class="container my-5" id="analysis">
+    <div class="form-container">
+      <h3 class="text-center mb-4">Enter YouTube Video URL</h3>
+      {% if error %}
+        <div class="alert alert-danger text-center" role="alert">{{ error }}</div>
+      {% endif %}
+      <form action="/" method="post" onsubmit="showLoading()">
+        <div class="mb-3">
+          <label for="youtube_url" class="form-label">YouTube URL</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="youtube_url" name="youtube_url"
+                   placeholder="https://www.youtube.com/watch?v=..." required oninput="updateVideoPreview()">
+            <button type="button" onclick="startVoiceInput()" class="btn btn-secondary">🎙️ Speak</button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="max_comments" class="form-label">Number of Comments to Analyze</label>
+          <input type="text" class="form-control" id="max_comments" name="max_comments" placeholder="100" inputmode="numeric" pattern="\d*">
+        </div>
+        <div class="mb-3">
+          <label for="keyword_filter" class="form-label">Filter Comments by Keyword (Optional)</label>
+          <input type="text" class="form-control" id="keyword_filter" name="keyword_filter" placeholder="e.g., spam, scam, fake">
+        </div>
+        <button type="submit" class="btn btn-modern w-100">Analyze Comments</button>
+      </form>
+      <!-- Loading Spinner (Initially Hidden) -->
+      <div id="loadingSpinner" class="text-center mt-3" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Analyzing...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Organized Media Section -->
+  <div class="container media-container">
+    <div class="row">
+      <!-- Video Preview Card with Title -->
+      <div class="col-md-4 mb-4">
+        <div class="card">
+          <div class="card-header">Video Preview</div>
+          <div class="card-body p-0">
+            <div id="videoPreview" class="video-container">
+              <iframe id="videoFrame" frameborder="0" allowfullscreen></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Carousel Card without Title -->
+      <div class="col-md-4 mb-4">
+        <div class="card">
+          <div class="card-body p-0">
+            <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-indicators">
+                {% for i in range(carousel_images|length) %}
+                  <button type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide-to="{{ i }}"
+                          class="{% if i == 0 %}active{% endif %}" aria-current="{% if i == 0 %}true{% endif %}"
+                          aria-label="Slide {{ i+1 }}"></button>
+                {% endfor %}
+              </div>
+              <div class="carousel-inner">
+                {% for img in carousel_images %}
+                  <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <img src="{{ img }}" class="d-block w-100" alt="Carousel Image">
+                  </div>
+                {% endfor %}
+              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Embedded Video Card without Title -->
+      <div class="col-md-4 mb-4">
+        <div class="card">
+          <div class="card-body p-0">
+            <div class="video-container">
+              <iframe src="https://www.youtube.com/embed/M7lc1UVf-VE" frameborder="0" allowfullscreen></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recently Analyzed Videos Section -->
+  <div class="container recent-videos">
+    <h4>Recently Analyzed Videos</h4>
+    <ul>
+      {% for vid in session['recent_videos'] %}
+        <li><a href="https://www.youtube.com/watch?v={{ vid }}" target="_blank">Video {{ loop.index }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- About Section -->
+  <div class="container about text-center mb-4">
+    <h2>About This App</h2>
+    <p>This YouTube Spam Detector analyzes video comments for spam, sentiment, adult content, and more. Our interactive dashboard provides insights through dynamic charts and statistics, helping you quickly understand the conversation on any video.</p>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center py-3">
+    <p>&copy; 2025 YouTube Spam Detector. Made with ❤️</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    function updateVideoPreview() {
+      let url = document.getElementById('youtube_url').value;
+      let videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/)([^&?\/]{11}))/);
+      if (videoIdMatch) {
+          let videoId = videoIdMatch[1];
+          document.getElementById('videoFrame').src = "https://www.youtube.com/embed/" + videoId;
+          document.getElementById('videoPreview').style.display = "block";
+      }
+    }
+
+    function startVoiceInput() {
+      let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.onresult = function(event) {
+          document.getElementById("youtube_url").value = event.results[0][0].transcript;
+          updateVideoPreview();
+      };
+      recognition.start();
+    }
+
+    function showLoading() {
+      document.getElementById('loadingSpinner').style.display = "block";
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById('loadingSpinner').style.display = "none";
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (localStorage.getItem("theme")) {
+        setTheme(localStorage.getItem("theme"));
+      }
+    });
+  </script>
+
+  <!-- Bootstrap Bundle & Dark Mode Script -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+      localStorage.setItem("darkMode", document.body.classList.contains("dark-mode"));
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      if (localStorage.getItem("darkMode") === "true") {
+        document.body.classList.add("dark-mode");
+      }
+    });
+  </script>
+
+  <!-- Theme Selector Script -->
+  <script>
+    function setTheme(theme) {
+      document.body.classList.remove("light-mode", "dark-mode", "neon-mode");
+      document.body.classList.add(theme);
+      localStorage.setItem("theme", theme);
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme) setTheme(savedTheme);
+    });
+  </script>
+
+  <!-- Floating Particles Script -->
+  <script>
+    particlesJS("particles-js", {
+      "particles": {
+        "number": { "value": 100, "density": { "enable": true, "value_area": 800 } },
+        "color": { "value": "#ffffff" },
+        "shape": { "type": "circle" },
+        "opacity": { "value": 0.5, "random": true },
+        "size": { "value": 3, "random": true },
+        "line_linked": { "enable": true, "distance": 150, "color": "#ffffff", "opacity": 0.4, "width": 1 },
+        "move": { "enable": true, "speed": 3, "direction": "none", "random": false, "straight": false, "out_mode": "out" }
+      },
+      "interactivity": {
+        "detect_on": "canvas",
+        "events": { "onhover": { "enable": true, "mode": "repulse" }, "onclick": { "enable": true, "mode": "push" } }
+      },
+      "retina_detect": true
+    });
+  </script>
 </body>
 </html>

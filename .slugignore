@@ -1,0 +1,10 @@
+# Exclude training data and checkpoints
+data/
+*.ckpt
+*.bin
+*.safetensors
+# Exclude virtual environment and cache
+venv/
+__pycache__/
+*.pyc
+*.pyo

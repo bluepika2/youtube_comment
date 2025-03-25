@@ -1,28 +1,43 @@
 import re
+import html
 import emoji
 import pandas as pd
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
 
 
-def clean_text(text):
+def clean_text(text: str) -> str:
     """
-    Cleans input text by removing extra spaces, special characters, and fixing common issues.
-    Keep emoji and URL since those attributes are common in spam
-    removes only unnecessary special characters while keeping punctuation, numbers, and URLs."""
-    text = emoji.replace_emoji(text)
+    Clean input text by:
+      - Converting emojis to their textual representation (e.g., 😀 -> :grinning_face:)
+      - Lowercasing the text
+      - Removing unnecessary special characters while preserving letters, numbers, spaces,
+        punctuation, emojis (in textual form), and common URL symbols.
+      - Removing excessive whitespace and specific unwanted patterns.
+    """
+    # Convert emojis to text representation to preserve their meaning.
+    if not isinstance(text, str):
+        return ""
+    text = html.unescape(text)
+    text = emoji.demojize(text)
     text = text.lower()
-    # Step 1: Remove special characters but keep letters, numbers, spaces, and punctuation
-    text = re.sub(r'[^a-zA-Z0-9\s.,=!?\'":;/\-]', '', text)
-
-    # Step 2: Remove excessive spaces
+    # Allowed characters: letters, numbers, whitespace, common punctuation, and URL symbols (@, #, %)
+    allowed_chars = r"a-zA-Z0-9\s\.\,\=\!\?\'\":;/\-\@\#\%\&"
+    text = re.sub(f"[^{allowed_chars}]", '', text)
+    # Remove excessive whitespace
     text = re.sub(r'\s+', ' ', text).strip()
-    text = re.sub(r'br /', '', text)
+    # Remove specific unwanted pattern "br /" with optional surrounding spaces.
+    text = re.sub(r'\s*br\s*/\s*', '', text)
     return text
 
-def load_dataset(filepath="Youtube-Spam-Dataset.csv"):
-    """Loads a dataset and preprocesses text."""
-    df = pd.read_csv(filepath)  # Must contain 'comment' and 'label' columns
+def load_dataset(filepath: str = "Youtube-Spam-Dataset.csv") -> pd.DataFrame:
+    """
+    Loads a dataset from a CSV file and preprocesses the 'comment' column.
+    The CSV file must contain 'comment' and 'label' columns.
+    """
+    df = pd.read_csv(filepath)
+    if 'comment' not in df.columns or 'label' not in df.columns:
+        raise ValueError("CSV file must contain 'comment' and 'label' columns.")
     df['label'] = df['label'].astype(int)
     df['comment'] = df['comment'].apply(clean_text)
     return df
@@ -30,7 +45,7 @@ def load_dataset(filepath="Youtube-Spam-Dataset.csv"):
 def split_dataset(df, test_size=0.2):
     """Splits the dataset into training and test sets."""
     train_texts, test_texts, train_labels, test_labels = train_test_split(
-        df['comment'], df['label'], test_size=test_size, random_state=42
+        df['comment'], df['label'], test_size=test_size, random_state=42, stratify=df['label']
     )
     train_dataset = Dataset.from_dict({"text": train_texts.tolist(), "label": train_labels.tolist()})
     test_dataset = Dataset.from_dict({"text": test_texts.tolist(), "label": test_labels.tolist()})
